@@ -1,4 +1,4 @@
-# Makefile for VM Detection Program
+# Makefile for VM Detection CLI Tool
 
 # Compiler
 CXX = g++
@@ -6,23 +6,32 @@ CXX = g++
 # Compiler Flags
 CXXFLAGS = -Wall -Wextra -std=c++11
 
-# Target Executable
-TARGET = vm_detection
+# Include Directories
+INCLUDES = -I.
 
 # Source Files
-SRC = cli.cpp
+SRCS = main.cpp vm_detection.cpp
+
+# Object Files
+OBJS = $(SRCS:.cpp=.o)
+
+# Target Executable
+TARGET = vm_detection
 
 # Default Target
 all: $(TARGET)
 
-# Compile Target
-$(TARGET): $(SRC)
-	$(CXX) $(CXXFLAGS) -o $(TARGET) $(SRC)
+# Build the executable
+$(TARGET): $(OBJS)
+	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJS)
 
-# Clean Target - Removes Executable
+# Compile source files into object files
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
+# Clean up build files
 clean:
-	rm -f $(TARGET)
+	rm -f $(TARGET) $(OBJS)
 
-# Run Target - Compiles and Runs the Program
-run: all
-	./$(TARGET)
+# Phony targets
+.PHONY: all clean
