@@ -18,7 +18,7 @@ int runIndividualTest(OS_TYPE OS, const std::string& testName);
 //individual tests
 bool checkIODevices(OS_TYPE OS);
 bool checkCPUFeatures(OS_TYPE OS);
-bool checkCPUID(OS_TYPE OS);
+bool checkVendorID(OS_TYPE OS);
 
 // Add additional test function declarations here...
 

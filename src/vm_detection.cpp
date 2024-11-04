@@ -10,7 +10,7 @@ using namespace std;
 const int NUMTESTS = 3;
 const char* tests[3] =
 {
-    "io", "cpu", "cpuid-query"
+    "io", "cpu-hypervisorbit", "cpuid-vendor"
 };
 
 // Function to display help message
@@ -32,12 +32,12 @@ int runAllTests(OS_TYPE OS) {
     }
     totalTests++;
 
-    if (checkCPUFeatures(OS)) {
+    if (checkHypervisorBit(OS)) {
         detected++;
     }
     totalTests++;
 
-    if (checkCPUID(OS)){
+    if (checkVendorID(OS)){
         detected++;
     }
     totalTests++;
@@ -59,10 +59,10 @@ int runIndividualTest(OS_TYPE OS, const std::string& testName)
     } 
     else if (testName == "cpu") 
     {
-        return checkCPUFeatures(OS);
+        return checkHypervisorBit(OS);
     }
-    else if (testName == "cpuid-query"){
-        return checkCPUID(OS);
+    else if (testName == "cpuid-vendor"){
+        return checkVendorID(OS);
     } 
     else 
     {
@@ -70,9 +70,14 @@ int runIndividualTest(OS_TYPE OS, const std::string& testName)
         return -1;
     }
 }
+//======================================TESTS===========================================
 
-bool checkCPUID(OS_TYPE OS){
-    cout << "===== Checking CPUID =====" << endl;
+
+/**
+    Test for checking EAX=0x40000000 for a Vendor ID string via CPUID.
+ */
+bool checkVendorID(OS_TYPE OS){
+    cout << "===== Checking Hypervisor Vendor ID =====" << endl;
     if (OS == OS_LINUX)
     {
         unsigned int eax, ebx, ecx, edx;
@@ -107,7 +112,7 @@ bool checkCPUID(OS_TYPE OS){
 }
 
 // CPU Features Test
-bool checkCPUFeatures(OS_TYPE OS) 
+bool checkHypervisorBit(OS_TYPE OS) 
 {
     cout << "===== Checking CPU Features =====" << endl;
 
