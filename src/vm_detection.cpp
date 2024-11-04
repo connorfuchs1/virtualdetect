@@ -129,9 +129,9 @@ bool checkHypervisorBit(OS_TYPE OS)
         );
 
         if (ecx & (1 << 31)) {
-            printf("Hypervisor bit is set. Running inside a virtual machine.\n");
+            printf("Hypervisor bit is set.\n");
         } else {
-            printf("Hypervisor bit is not set. Likely running on physical hardware.\n");
+            printf("Hypervisor bit is not set.\n");
             return false;
         }
 

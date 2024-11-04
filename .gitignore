@@ -1,1 +1,4 @@
 .venv/
+*.o
+vm_detection
+*.out
