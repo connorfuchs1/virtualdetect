@@ -6,11 +6,21 @@
 
 using namespace std;
 
-//All of our tests
-const int NUMTESTS = 3;
-const char* tests[3] =
+//================================Globals===============================
+
+//common VM signatures
+vector<string> vm_signatures = 
 {
-    "io", "cpu-hypervisorbit", "cpuid-vendor"
+    "VMware", "VirtualBox", "QEMU", 
+    "KVM", "Microsoft Corporation", 
+    "Parallels", "Xen", "Bochs", "BHYVE"
+};
+
+//number of tests
+const int NUMTESTS = 4;
+const char* tests[4] =
+{
+    "io", "cpu-hypervisorbit", "cpuid-vendor", "dmi"
 };
 
 // Function to display help message
@@ -41,6 +51,11 @@ int runAllTests(OS_TYPE OS) {
         detected++;
     }
     totalTests++;
+    
+    if (checkDMI(OS)){
+        detected++;
+    }
+    totalTests++;
 
     // Add more tests here as needed
 
@@ -63,6 +78,9 @@ int runIndividualTest(OS_TYPE OS, const std::string& testName)
     }
     else if (testName == "cpuid-vendor"){
         return checkVendorID(OS);
+    }
+    else if (testName == "dmi"){
+        return checkDMI(OS);
     } 
     else 
     {
@@ -72,6 +90,57 @@ int runIndividualTest(OS_TYPE OS, const std::string& testName)
 }
 //======================================TESTS===========================================
 
+
+/**
+    Test to check for VM signatures in DMI fields
+ */
+bool checkDMI(OS_TYPE OS){
+    cout<<"===== Checking DMI Fields =====" <<endl;
+    //Checking for Linux Systems
+    if (OS == OS_LINUX)
+    {
+        //Typical DMI paths on linux
+        const std::vector<std::string> dmi_paths = {
+        "/sys/class/dmi/id/sys_vendor",
+        "/sys/class/dmi/id/product_name",
+        "/sys/class/dmi/id/product_version"
+        };
+
+        bool detected = false;
+        //Check each DMI field for any VM signatures
+        for (const auto& path : dmi_paths)
+        {
+            ifstream file(path);
+            string value;
+
+            if(file.is_open() && getline(file, value))
+            {
+                for(const auto& signature : vm_signatures)
+                {
+                    if (value.find(signature) != std::string::npos) 
+                    {
+                        detected = true; //We found a signature.
+                        cout<<"Signature found :"<<"\""<<signature<<"\"" <<" in DMI field: "<<path<<endl;
+                    }
+                }
+            }
+            
+        }
+        return detected;
+    }
+
+    if(OS == OS_WINDOWS)
+    {
+
+    }
+
+    if (OS == OS_MAC)
+    {
+
+    }
+
+    return false;
+}
 
 /**
     Test for checking EAX=0x40000000 for a Vendor ID string via CPUID.
@@ -111,10 +180,12 @@ bool checkVendorID(OS_TYPE OS){
     return true;
 }
 
-// CPU Features Test
+/**
+    Test to check whether the hypervisor bit is set.
+ */
 bool checkHypervisorBit(OS_TYPE OS) 
 {
-    cout << "===== Checking CPU Features =====" << endl;
+    cout << "===== Checking CPU Hypervisor Bit =====" << endl;
 
     if (OS == OS_LINUX) 
     {
@@ -151,11 +222,12 @@ bool checkHypervisorBit(OS_TYPE OS)
     }
 }
 
-// IO Devices Test
+/**
+    Test to check if IO Devices have VM signatures attached.
+ */
 bool checkIODevices(OS_TYPE OS) 
 {
     cout << "===== Checking IO Devices =====" << endl;
-    vector<string> vm_signatures = {"VMware", "VirtualBox", "QEMU", "Microsoft"};
 
     if (OS == OS_LINUX) 
     {
