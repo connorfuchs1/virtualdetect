@@ -22,7 +22,7 @@
             <mxPoint as="offset" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="0APl-ZvWKWZw0Ipn49ds-1" value="virtual machine" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+        <mxCell id="0APl-ZvWKWZw0Ipn49ds-1" value="virtual machine&lt;div&gt;iso&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="30" y="170" width="110" height="60" as="geometry" />
         </mxCell>
         <mxCell id="0APl-ZvWKWZw0Ipn49ds-2" value="&lt;h2&gt;virtualdetect pipeline&lt;/h2&gt;" style="text;strokeColor=none;align=center;fillColor=none;html=1;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
@@ -46,8 +46,14 @@
         <mxCell id="0APl-ZvWKWZw0Ipn49ds-11" value="populate vm with &quot;valuables&quot;" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="650" y="170" width="120" height="60" as="geometry" />
         </mxCell>
-        <mxCell id="0APl-ZvWKWZw0Ipn49ds-15" value="" style="whiteSpace=wrap;html=1;rounded=0;" vertex="1" parent="1">
+        <mxCell id="kOkwpyVvnz4lnNvjVxz7-2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="0APl-ZvWKWZw0Ipn49ds-15" target="kOkwpyVvnz4lnNvjVxz7-1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="0APl-ZvWKWZw0Ipn49ds-15" value="auto-deploy via proxmox" style="whiteSpace=wrap;html=1;rounded=0;" vertex="1" parent="1">
           <mxGeometry x="650" y="310" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="kOkwpyVvnz4lnNvjVxz7-1" value="monitoring tools setup" style="whiteSpace=wrap;html=1;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="450" y="310" width="120" height="60" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
