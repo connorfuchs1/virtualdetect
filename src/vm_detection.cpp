@@ -155,10 +155,9 @@ bool checkMAC(OS_TYPE OS){
                     //now we check this mac address to see if it matches any known prefix addys
                     for(const auto& prefix : vm_mac_prefixes)
                     {
-                        
                         if (mac.find(prefix) == 0 )
                         {
-                            cout << "Virtual NIC detected: " << iface 
+                            cout << "Virtual NIC prefix detected: " << iface 
                             << " with MAC " << mac << endl;
                             detected = true;
                         }
