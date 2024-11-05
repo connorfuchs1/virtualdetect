@@ -23,7 +23,7 @@ int main(int argc, char* argv[]) {
         cout << "Running Windows" << endl;
         OS = OS_WINDOWS;
     } else if (LINUX) {
-        cout << "Running Linux" << endl;
+        cout << "Linux system detected.. running linux checks" << endl;
         OS = OS_LINUX;
     } else {
         cout << "Unknown OS" << endl;

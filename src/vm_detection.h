@@ -1,8 +1,6 @@
 #ifndef VM_DETECTION_H
 #define VM_DETECTION_H
 
-#include <string>
-
 enum OS_TYPE {
     OS_UNKNOWN = -1,
     OS_WINDOWS,
@@ -20,6 +18,7 @@ bool checkIODevices(OS_TYPE OS);
 bool checkHypervisorBit(OS_TYPE OS);
 bool checkVendorID(OS_TYPE OS);
 bool checkDMI(OS_TYPE OS);
+bool checkMAC(OS_TYPE OS);
 
 // Add additional test function declarations here...
 
