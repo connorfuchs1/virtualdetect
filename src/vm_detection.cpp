@@ -65,8 +65,6 @@ static const std::map<std::string, std::function<bool(OS_TYPE)>> tests = {
 //number of tests
 const int NUMTESTS = tests.size();
 
-
-
 // Function to display help message
 void displayHelp() 
 {
