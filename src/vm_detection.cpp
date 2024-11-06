@@ -16,6 +16,8 @@
 using namespace std;
 
 //================================Globals===============================
+OS_TYPE OS = OS_UNKNOWN;
+ARCH_TYPE ARCH = ARCH_UNKNOWN;
 
 //List of Common VM signatures
 vector<string> vm_signatures = 
@@ -52,7 +54,7 @@ std::vector<std::string> virtual_device_ids = {
 };
 
 //Map for storing all of our tests
-static const std::map<std::string, std::function<bool(OS_TYPE)>> tests = {
+static const std::map<std::string, std::function<bool()>> tests = {
         {"io", checkIODevices},
         {"cpu", checkHypervisorBit},
         {"cpuid-vendor", checkVendorID},
@@ -76,15 +78,15 @@ void displayHelp()
 }
 
 // Function to run all tests
-int runAllTests(OS_TYPE OS) 
+int runAllTests()
 {
     int totalTests = tests.size();
     int detected = 0;
-
+    cout << ARCH << endl;
     // Run all tests
     for (const auto& [testName, testFunction] : tests) 
     {
-        if (testFunction(OS)) {
+        if (testFunction()) {
             detected++;
         }
     }
@@ -97,14 +99,14 @@ int runAllTests(OS_TYPE OS)
 }
 
 // Function to run individual tests
-int runIndividualTest(OS_TYPE OS, const std::string& testName) 
+int runIndividualTest(const std::string& testName) 
 {
     // Look up the test function by name
     auto it = tests.find(testName);
     if (it != tests.end()) 
     {
         // Run the test if it exists
-        return it->second(OS);
+        return it->second();
     } 
     else 
     {
@@ -118,7 +120,7 @@ int runIndividualTest(OS_TYPE OS, const std::string& testName)
 /**
     Test to check PCI vendor and device ID's for virtual Devices
  */
-bool checkPCI(OS_TYPE OS){
+bool checkPCI(){
     cout<<"===== Checking for virtualized PCI devices =====" << endl;
     if (OS == OS_LINUX)
     {
@@ -141,7 +143,7 @@ bool checkPCI(OS_TYPE OS){
 /**
     Test to check our MAC ADDRESS for common VM address prefixes.
  */
-bool checkMAC(OS_TYPE OS){
+bool checkMAC(){
     cout<<"===== Checking Common MAC Addresses ====="<< endl;
     bool detected = false;
 
@@ -211,7 +213,7 @@ bool checkMAC(OS_TYPE OS){
 /**
     Test to check for VM signatures in DMI fields
  */
-bool checkDMI(OS_TYPE OS){
+bool checkDMI(){
     cout<<"===== Checking DMI Fields =====" <<endl;
     //Checking for Linux Systems
     if (OS == OS_LINUX)
@@ -262,68 +264,82 @@ bool checkDMI(OS_TYPE OS){
 /**
     Test for checking EAX=0x40000000 for a Vendor ID string via CPUID.
  */
-bool checkVendorID(OS_TYPE OS){
+bool checkVendorID() {
     std::cout << "===== Checking Hypervisor Vendor ID =====" << std::endl;
 
-#ifdef __x86_64__
-    // x86/x86-64 specific code using cpuid
-    if (OS == OS_LINUX) {
-        unsigned int eax = 0x40000000;
-        unsigned int ebx, ecx, edx;
-        char hyper_vendor[13];
+#if defined(X86) || defined(X86_64)
+    if (OS == OS_LINUX) 
+    {
+        unsigned int eax, ebx, ecx, edx;
+        char hyper_vendor[13] = {0};
 
-        if (__get_cpuid(eax, &eax, &ebx, &ecx, &edx)) {
-            memcpy(hyper_vendor + 0, &ebx, 4);
-            memcpy(hyper_vendor + 4, &ecx, 4);
-            memcpy(hyper_vendor + 8, &edx, 4);
-            hyper_vendor[12] = '\0';
+        // Step 1: Check if hypervisor is present by examining the hypervisor present bit
+        eax = 1; // CPUID leaf 0x1
+        __asm__ __volatile__(
+            "cpuid"
+            : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx)  // Outputs
+            : "0"(eax)                                     // Inputs
+        );
 
-            if (strlen(hyper_vendor) > 0) 
-            {
-                printf("Hypervisor Vendor ID: %s\n", hyper_vendor);
-            } 
-            else 
-            {
-                printf("No Hypervisor Vendor ID found.\n");
-                return false;
-            }
-        } else {
-            printf("cpuid instruction not supported.\n");
+        if (!(ecx & (1 << 31))) {
+            printf("No hypervisor detected (hypervisor bit not set).\n");
+            return false;
+        }
+
+        // Step 2: Query hypervisor vendor ID
+        eax = 0x40000000; // Hypervisor CPUID leaf
+        __asm__ __volatile__(
+            "cpuid"
+            : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx)  // Outputs
+            : "0"(eax)                                     // Inputs
+        );
+
+        memcpy(hyper_vendor + 0, &ebx, 4);
+        memcpy(hyper_vendor + 4, &ecx, 4);
+        memcpy(hyper_vendor + 8, &edx, 4);
+        hyper_vendor[12] = '\0';
+
+        if (strlen(hyper_vendor) > 0) 
+        {
+            printf("Hypervisor Vendor ID: %s\n", hyper_vendor);
+            return true;
+        } 
+        else 
+        {
+            printf("No Hypervisor Vendor ID found.\n");
             return false;
         }
     }
-
-#elif defined(__aarch64__) || defined(__arm__)
-    // ARM-specific virtualization detection
-    if (OS == OS_LINUX) {
-        std::ifstream cpuinfo("/proc/cpuinfo");
-        if (!cpuinfo.is_open()) {
-            std::cerr << "Error opening /proc/cpuinfo" << std::endl;
-            return false;
-        }
-
-        std::string line;
-        while (std::getline(cpuinfo, line)) {
-            // Look for hypervisor indicators in /proc/cpuinfo
-            if (line.find("Hypervisor") != std::string::npos || line.find("VM") != std::string::npos) {
-                std::cout << "Potential hypervisor detected in /proc/cpuinfo: " << line << std::endl;
-                return true;
-            }
-        }
-        cpuinfo.close();
-        std::cout << "No hypervisor vendor detected in /proc/cpuinfo." << std::endl;
+    else
+    {
+        printf("Unsupported OS for hypervisor detection on x86 architecture.\n");
+        return false;
+    }
+#elif defined(ARM) || defined(ARM64)
+    if (OS == OS_LINUX)
+    {
+        // ARM-specific virtualization detection could be added here
+        // For now, we'll indicate that this operation is unsupported
+        std::cout << "Hypervisor detection via CPUID is not supported on ARM architectures.\n";
+        return false;
+    }
+    else
+    {
+        std::cout << "Unsupported OS for hypervisor detection on ARM architecture.\n";
         return false;
     }
 #else
-    std::cout << "Unsupported architecture for hypervisor detection." << std::endl;
+    std::cout << "Unsupported architecture for hypervisor detection.\n";
     return false;
 #endif
-    return true;
 }
+
+
+
 /**
     Test to check whether the hypervisor bit is set.
  */
-bool checkHypervisorBit(OS_TYPE OS) 
+bool checkHypervisorBit() 
 {
     cout << "===== Checking CPU Hypervisor Bit =====" << endl;
 #ifdef __x86_64__
@@ -377,7 +393,7 @@ bool checkHypervisorBit(OS_TYPE OS)
 /**
     Test to check if IO Devices have VM signatures attached.
  */
-bool checkIODevices(OS_TYPE OS) 
+bool checkIODevices() 
 {
     cout << "===== Checking IO Devices =====" << endl;
 

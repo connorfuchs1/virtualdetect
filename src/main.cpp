@@ -4,31 +4,40 @@
 
 using namespace std;
 
-// OS Detection Macros
-#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER)
-    #define WINDOWS 1
-#else
-    #define WINDOWS 0
-#endif
-
-#if defined(__linux__) || defined(__GNUC__)
-    #define LINUX 1
-#else
-    #define LINUX 0
-#endif
 
 int main(int argc, char* argv[]) {
-    OS_TYPE OS = OS_UNKNOWN;
-    if (WINDOWS) {
+    // Detect and display the operating system
+    if (WINDOWS) 
+    {
         cout << "Running Windows" << endl;
         OS = OS_WINDOWS;
-    } else if (LINUX) {
+    }
+     else if (LINUX) {
         cout << "Linux system detected.. running linux checks" << endl;
         OS = OS_LINUX;
-    } else {
+    } 
+    else 
+    {
         cout << "Unknown OS" << endl;
     }
 
+    // Detect and display the architecture
+    if (X86_64) 
+    {
+        ARCH = ARCH_X86_64;
+    } else if (X86) 
+    {
+        ARCH = ARCH_X86;
+    } else if (ARM64) 
+    {
+        ARCH = ARCH_ARM64;
+    } else if (ARM) 
+    {
+        ARCH = ARCH_ARM;
+    } else 
+    {
+        cout << "Unknown architecture" << endl;
+    }
     // Command-line options
     int option;
     bool runAll = false;
@@ -52,9 +61,9 @@ int main(int argc, char* argv[]) {
     }
 
     if (runAll) {
-        runAllTests(OS);
+        runAllTests();
     } else if (!testName.empty()) {
-        runIndividualTest(OS, testName);
+        runIndividualTest(testName);
     } else {
         displayHelp();
         return -1;
