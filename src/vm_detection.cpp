@@ -7,6 +7,9 @@
 #include <sstream>
 #include <algorithm>
 #include <string>
+#include <functional>
+#include <map>
+
 using namespace std;
 
 //================================Globals===============================
@@ -32,15 +35,38 @@ const std::vector<std::string> vm_mac_prefixes = {
     "00:1A:4A"   // Parallels
 };
 
-//number of tests
-const int NUMTESTS = 4;
-const char* tests[4] =
-{
-    "io", "cpu-hypervisorbit", "cpuid-vendor", "dmi"
+// Known PCI vendor and device IDs for virtual devices
+std::vector<std::string> virtual_device_ids = {
+    "15ad:0740", // VMware
+    "15ad:0405", // VMware
+    "15ad:07a0", // VMware
+    "1234:1111", // QEMU
+    "1af4:1000", // Virtio (QEMU)
+    "80ee:beef", // VirtualBox
+    "10de:1db6", // NVIDIA vGPU for virtual environments
+    "5853:0001", // Xen
+    "5853:0002", // Xen
 };
 
+//Map for storing all of our tests
+static const std::map<std::string, std::function<bool(OS_TYPE)>> tests = {
+        {"io", checkIODevices},
+        {"cpu", checkHypervisorBit},
+        {"cpuid-vendor", checkVendorID},
+        {"dmi", checkDMI},
+        {"mac", checkMAC},
+        {"pci", checkPCI}
+        // Add more test mappings here as needed
+    };
+
+//number of tests
+const int NUMTESTS = tests.size();
+
+
+
 // Function to display help message
-void displayHelp() {
+void displayHelp() 
+{
     cout << "Usage: vm_detection [options]" << endl;
     cout << "Options:" << endl;
     cout << "  -h           Display this help message" << endl;
@@ -49,36 +75,19 @@ void displayHelp() {
 }
 
 // Function to run all tests
-int runAllTests(OS_TYPE OS) {
-    int totalTests = 0;
+int runAllTests(OS_TYPE OS) 
+{
+    int totalTests = tests.size();
     int detected = 0;
 
-    if (checkIODevices(OS)) {
-        detected++;
+    // Run all tests
+    for (const auto& [testName, testFunction] : tests) 
+    {
+        if (testFunction(OS)) {
+            detected++;
+        }
     }
-    totalTests++;
 
-    if (checkHypervisorBit(OS)) {
-        detected++;
-    }
-    totalTests++;
-
-    if (checkVendorID(OS)){
-        detected++;
-    }
-    totalTests++;
-    
-    if (checkDMI(OS)){
-        detected++;
-    }
-    totalTests++;
-
-    if (checkMAC(OS)){
-        detected++;
-    }
-    totalTests++;
-
-    // Add more tests here as needed
 
     cout << "\n\t===================================================" << endl;
     cout << "\tResult: " << detected << " of " << totalTests << " tests found virtualization artifacts" << endl;
@@ -89,19 +98,12 @@ int runAllTests(OS_TYPE OS) {
 // Function to run individual tests
 int runIndividualTest(OS_TYPE OS, const std::string& testName) 
 {
-    if (testName == "io") 
+    // Look up the test function by name
+    auto it = tests.find(testName);
+    if (it != tests.end()) 
     {
-        return checkIODevices(OS);
-    } 
-    else if (testName == "cpu") 
-    {
-        return checkHypervisorBit(OS);
-    }
-    else if (testName == "cpuid-vendor"){
-        return checkVendorID(OS);
-    }
-    else if (testName == "dmi"){
-        return checkDMI(OS);
+        // Run the test if it exists
+        return it->second(OS);
     } 
     else 
     {
@@ -109,7 +111,31 @@ int runIndividualTest(OS_TYPE OS, const std::string& testName)
         return -1;
     }
 }
+
 //======================================TESTS===========================================
+
+/**
+    Test to check PCI vendor and device ID's for virtual Devices
+ */
+bool checkPCI(OS_TYPE OS){
+    cout<<"===== Checking for virtualized PCI devices =====" << endl;
+    if (OS == OS_LINUX)
+    {
+        
+
+    }
+    if (OS == OS_WINDOWS)
+    {
+
+
+    }
+    if (OS == OS_MAC)
+    {
+
+
+    }
+    return false;
+}
 
 /**
     Test to check our MAC ADDRESS for common VM address prefixes.
@@ -166,6 +192,15 @@ bool checkMAC(OS_TYPE OS){
                 }
             }
         }
+
+    }
+    if (OS == OS_WINDOWS){
+
+
+    }
+
+    if (OS == OS_MAC){
+
 
     }
     return detected;
