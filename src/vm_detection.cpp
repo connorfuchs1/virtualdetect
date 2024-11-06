@@ -10,6 +10,9 @@
 #include <functional>
 #include <map>
 
+#ifdef __x86_64__
+    #include <cpuid.h>
+#endif    
 using namespace std;
 
 //================================Globals===============================
@@ -262,47 +265,70 @@ bool checkDMI(OS_TYPE OS){
     Test for checking EAX=0x40000000 for a Vendor ID string via CPUID.
  */
 bool checkVendorID(OS_TYPE OS){
-    cout << "===== Checking Hypervisor Vendor ID =====" << endl;
-    if (OS == OS_LINUX)
-    {
-        unsigned int eax, ebx, ecx, edx;
+    std::cout << "===== Checking Hypervisor Vendor ID =====" << std::endl;
+
+#ifdef __x86_64__
+    // x86/x86-64 specific code using cpuid
+    if (OS == OS_LINUX) {
+        unsigned int eax = 0x40000000;
+        unsigned int ebx, ecx, edx;
         char hyper_vendor[13];
 
-        eax = 0x40000000;
+        if (__get_cpuid(eax, &eax, &ebx, &ecx, &edx)) {
+            memcpy(hyper_vendor + 0, &ebx, 4);
+            memcpy(hyper_vendor + 4, &ecx, 4);
+            memcpy(hyper_vendor + 8, &edx, 4);
+            hyper_vendor[12] = '\0';
 
-        __asm__ __volatile__(
-        "cpuid"
-        : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx)
-        : "a"(eax)
-        );
+            if (strlen(hyper_vendor) > 0) 
+            {
+                printf("Hypervisor Vendor ID: %s\n", hyper_vendor);
+            } 
+            else 
+            {
+                printf("No Hypervisor Vendor ID found.\n");
+                return false;
+            }
+        } else {
+            printf("cpuid instruction not supported.\n");
+            return false;
+        }
+    }
 
-        memcpy(hyper_vendor + 0, &ebx, 4);
-        memcpy(hyper_vendor + 4, &ecx, 4);
-        memcpy(hyper_vendor + 8, &edx, 4);
-        hyper_vendor[12] = '\0';
-
-        if (strlen(hyper_vendor) > 0) 
-        {
-        printf("Hypervisor Vendor ID: %s\n", hyper_vendor);
-        } 
-
-        else 
-        {
-        printf("No Hypervisor Vendor ID found.\n");
-        return false;
+#elif defined(__aarch64__) || defined(__arm__)
+    // ARM-specific virtualization detection
+    if (OS == OS_LINUX) {
+        std::ifstream cpuinfo("/proc/cpuinfo");
+        if (!cpuinfo.is_open()) {
+            std::cerr << "Error opening /proc/cpuinfo" << std::endl;
+            return false;
         }
 
+        std::string line;
+        while (std::getline(cpuinfo, line)) {
+            // Look for hypervisor indicators in /proc/cpuinfo
+            if (line.find("Hypervisor") != std::string::npos || line.find("VM") != std::string::npos) {
+                std::cout << "Potential hypervisor detected in /proc/cpuinfo: " << line << std::endl;
+                return true;
+            }
+        }
+        cpuinfo.close();
+        std::cout << "No hypervisor vendor detected in /proc/cpuinfo." << std::endl;
+        return false;
     }
+#else
+    std::cout << "Unsupported architecture for hypervisor detection." << std::endl;
+    return false;
+#endif
     return true;
 }
-
 /**
     Test to check whether the hypervisor bit is set.
  */
 bool checkHypervisorBit(OS_TYPE OS) 
 {
     cout << "===== Checking CPU Hypervisor Bit =====" << endl;
-
+#ifdef __x86_64__
     if (OS == OS_LINUX) 
     {
         unsigned int eax, ecx;
@@ -336,6 +362,18 @@ bool checkHypervisorBit(OS_TYPE OS)
         cout << "Unsupported OS for CPU features check." << endl;
         return false;
     }
+
+#elif defined(__aarch64__) || defined(__arm__)
+    if (OS == OS_LINUX)
+    {
+        cout<<"On arm based processor, implement check hypervisor bit"<<endl;
+    }
+#else
+    std::cout << "Unsupported architecture for hypervisor detection." << std::endl;
+    return false;
+#endif
+    return true;
+
 }
 
 /**
