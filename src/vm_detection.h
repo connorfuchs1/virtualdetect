@@ -73,6 +73,11 @@ bool checkDMI();
 bool checkMAC();
 bool checkPCI();
 bool checkTiming();
+bool checkDescriptorTables();
+
+uint64_t rdtsc_start();
+uint64_t rdtsc_end();
+bool checkTiming();
 
 // Add additional test function declarations here...
 

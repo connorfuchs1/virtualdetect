@@ -11,6 +11,9 @@
 #include <map>
 #include <pci/pci.h>
 #include <regex>
+#include <csignal>
+#include <csetjmp>
+#include <cstdint>
 
 #ifdef __x86_64__
     #include <cpuid.h>
@@ -28,12 +31,13 @@ OS_TYPE OS = OS_UNKNOWN;
 ARCH_TYPE ARCH = ARCH_UNKNOWN;
 
 //List of Common VM signatures
-vector<string> vm_signatures = 
-{
-    "VMware", "VirtualBox", "QEMU", 
-    "KVM", "Microsoft Corporation", 
-    "Parallels", "Xen", "Bochs", "BHYVE"
+vector<string> vm_signatures = {
+    "VMware", "VirtualBox", "VBOX", "QEMU",
+    "KVM", "Microsoft Corporation", "Hyper-V",
+    "Parallels", "Xen", "Bochs", "BHYVE",
+    "HVM domU", "VMW", "innotek GmbH", "QEM", "VRT"
 };
+
 
 // List of common VM MAC address prefixes (need to get more accurate)
 const std::vector<std::string> vm_mac_prefixes = {
@@ -69,7 +73,8 @@ static const std::map<std::string, std::function<bool()>> tests = {
         {"dmi", checkDMI},
         {"mac", checkMAC},
         {"pci", checkPCI},
-        {"timing", checkTiming}
+        {"timing", checkTiming},
+        {"desctables", checkDescriptorTables}
         // Add more test mappings here as needed
     };
 
@@ -125,6 +130,88 @@ int runIndividualTest(const std::string& testName)
 }
 
 //======================================TESTS===========================================
+
+// Jump buffer for non-local goto in signal handler
+jmp_buf buf;
+
+/**
+ * Signal handler for catching segmentation faults.
+ * Uses longjmp to return to a safe execution point.
+ */
+void signal_handler(int signum) {
+    int x = signum;
+    cout<<x<<endl;
+    longjmp(buf, 1); // Jump back to setjmp point with return value 1
+}
+
+/**
+ * Checks the base addresses of the GDT and IDT.
+ * Detects possible virtualization by analyzing these addresses.
+ */
+bool checkDescriptorTables() {
+    std::cout << "===== Checking Descriptor Tables =====" << std::endl;
+
+    // Set up signal handler for SIGSEGV to catch segmentation faults
+    std::signal(SIGSEGV, signal_handler);
+
+    // Buffers to store GDTR and IDTR contents
+    struct {
+        uint16_t limit;
+        uint64_t base;
+    } __attribute__((packed)) gdtr, idtr;
+
+    bool virtualization_detected = false;
+
+    // Use setjmp/longjmp for exception handling
+    if (setjmp(buf) == 0) {
+        // Attempt to execute SGDT and SIDT instructions
+        asm volatile("sgdt %0" : "=m"(gdtr));
+        asm volatile("sidt %0" : "=m"(idtr));
+
+        // If no exception occurred, analyze the base addresses
+        std::cout << "SGDT and SIDT executed successfully." << std::endl;
+
+        std::cout << "GDTR Base: 0x" << std::hex << gdtr.base << std::endl;
+        std::cout << "IDTR Base: 0x" << std::hex << idtr.base << std::endl;
+
+        //reset to decimal format
+        std::cout << std::dec;
+
+        // Check if base addresses are in user space (unexpected)
+        if (gdtr.base < 0xFFFF800000000000) {
+            std::cout << "GDTR base address is in user space (unexpected). Possible virtualization detected." << std::endl;
+            virtualization_detected = true;
+        } else {
+            std::cout << "GDTR base address is in kernel space (expected)." << std::endl;
+        }
+
+        if (idtr.base < 0xFFFF800000000000) {
+            std::cout << "IDTR base address is in user space (unexpected). Possible virtualization detected." << std::endl;
+            virtualization_detected = true;
+        } else {
+            std::cout << "IDTR base address is in kernel space (expected)." << std::endl;
+        }
+
+        // Additional checks for known virtualization signatures
+        // For example, checking for specific base addresses used by VMware
+        if (idtr.base == 0xfff82000 || gdtr.base == 0xfff82000) {
+            std::cout << "Descriptor tables have base addresses common in VMware environments." << std::endl;
+            virtualization_detected = true;
+        }
+
+    } else {
+        // If an exception occurred, execution jumps here
+        std::cout << "SGDT or SIDT caused a segmentation fault. Possible virtualization detected." << std::endl;
+        virtualization_detected = true;
+    }
+
+    // Restore default signal handler
+    std::signal(SIGSEGV, SIG_DFL);
+
+    return virtualization_detected;
+}
+
+
 /**
  * Reads the Time Stamp Counter (TSC) before the code block.
  * Ensures serialization to get an accurate timestamp.
@@ -169,15 +256,18 @@ uint64_t rdtsc_end() {
 
 bool checkTiming() {
     std::cout << "===== Measuring Timing Discrepancies =====" << std::endl;
+    bool detected = false;
     std::ifstream cpuinfo("/proc/cpuinfo");
     std::string line;
     std::regex pattern("cpu MHz\\s+: ([0-9]+\\.[0-9]+)");
     std::smatch match;
     unsigned int cpu_mhz = 0;
 
-    if (cpuinfo.is_open()) {
+    if (cpuinfo.is_open()) 
+    {
         while (std::getline(cpuinfo, line)) {
-            if (std::regex_search(line, match, pattern)) {
+            if (std::regex_search(line, match, pattern)) 
+            {
                 double mhz = std::stod(match[1]);
                 cpu_mhz = static_cast<unsigned int>(mhz);
             }
@@ -205,16 +295,24 @@ bool checkTiming() {
     std::cout << "Average cycles per operation: " << average_cycles << std::endl;
     std::cout << "Average time per operation: " << average_time_ns << " ns" << std::endl;
 
-    // Threshold in nanoseconds (to be determined empirically)
-    double threshold_ns = 100.0; // Example threshold
+    // Threshold in nanoseconds (TBD empirically)
+    double threshold_ns = 100.0; // Example threshold !
 
     if (average_time_ns > threshold_ns) {
         std::cout << "Timing discrepancies detected. Possible virtualization environment." << std::endl;
+        detected = true;
     } 
     else {
         std::cout << "No significant timing discrepancies detected." << std::endl;
     }
-    return false;
+
+    if(OS == OS_WINDOWS)
+    {
+
+
+    }
+
+    return detected;
 }
 
 
