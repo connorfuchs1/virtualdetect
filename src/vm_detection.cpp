@@ -9,6 +9,7 @@
 #include <string>
 #include <functional>
 #include <map>
+#include <pci/pci.h>
 
 #ifdef __x86_64__
     #include <cpuid.h>
@@ -42,9 +43,9 @@ const std::vector<std::string> vm_mac_prefixes = {
 
 // Known PCI vendor and device IDs for virtual devices
 std::vector<std::string> virtual_device_ids = {
-    "15ad:0740", // VMware
-    "15ad:0405", // VMware
-    "15ad:07a0", // VMware
+    "0x15ad:0x0740", // VMware
+    "0x15ad:0x0405", // VMware
+    "0x15ad:0x07a0", // VMware
     "1234:1111", // QEMU
     "1af4:1000", // Virtio (QEMU)
     "80ee:beef", // VirtualBox
@@ -119,13 +120,67 @@ int runIndividualTest(const std::string& testName)
 
 /**
     Test to check PCI vendor and device ID's for virtual Devices
+
+    Seems like we will have two options: try to spoof hardward (hard),
+    or just adjust vm settings to allow for a hardware passthrough.
  */
 bool checkPCI(){
     cout<<"===== Checking for virtualized PCI devices =====" << endl;
+    bool detected = false;
+    unsigned int virtualized_devices= 0;
     if (OS == OS_LINUX)
     {
-        
+         const std::string pci_path = "/sys/bus/pci/devices";
 
+    if (!std::filesystem::exists(pci_path)) {
+        std::cerr << "PCI devices path does not exist." << std::endl;
+        return false;
+    }
+
+    for (const auto& entry : std::filesystem::directory_iterator(pci_path)) {
+        std::string device_path = entry.path();
+        std::string vendor_id, device_id;
+
+        try {
+            // Read vendor ID
+            std::ifstream vendor_file(device_path + "/vendor");
+            if (vendor_file) {
+                std::getline(vendor_file, vendor_id);
+                vendor_file.close();
+            } else {
+                std::cerr << "Failed to read vendor ID for device: " << device_path << std::endl;
+                continue;
+            }
+
+            // Read device ID
+            std::ifstream device_file(device_path + "/device");
+            if (device_file) {
+                std::getline(device_file, device_id);
+                device_file.close();
+            } else {
+                std::cerr << "Failed to read device ID for device: " << device_path << std::endl;
+                continue;
+            }
+
+            // Combine vendor and device IDs in "vendor:device" format
+            std::string vendor_device = vendor_id + ":" + device_id;
+            // Check if the combined vendor:device ID is in the list of known virtual device IDs
+            auto it = std::find(virtual_device_ids.begin(), virtual_device_ids.end(), vendor_device);
+            if (it != virtual_device_ids.end()) 
+            {
+                virtualized_devices++;
+                detected = true;
+            } 
+
+        } 
+        catch (const std::exception& e) {
+            std::cerr << "Error processing device " << entry.path().filename() << ": " << e.what() << std::endl;
+        }
+    } 
+    std::cout << "Virtualization artifacts detected for: " 
+    << virtualized_devices << " PCI devices. " << std::endl;
+    
+    
     }
     if (OS == OS_WINDOWS)
     {
@@ -137,7 +192,7 @@ bool checkPCI(){
 
 
     }
-    return false;
+    return detected;
 }
 
 /**

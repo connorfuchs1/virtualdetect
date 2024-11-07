@@ -7,7 +7,10 @@ CXX = g++
 CXXFLAGS = -Wall -Wextra -std=c++17
 
 # Include Directories
-INCLUDES = -I.
+INCLUDES = -I. $(shell pkg-config --cflags libpci)
+
+# Libraries
+LIBS = $(shell pkg-config --libs libpci)
 
 # Source Files
 SRCS = main.cpp vm_detection.cpp
@@ -23,7 +26,7 @@ all: $(TARGET)
 
 # Build the executable
 $(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJS)
+	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJS) $(LIBS)
 
 # Compile source files into object files
 %.o: %.cpp
