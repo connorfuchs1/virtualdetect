@@ -10,10 +10,17 @@
 #include <functional>
 #include <map>
 #include <pci/pci.h>
+#include <regex>
 
 #ifdef __x86_64__
     #include <cpuid.h>
 #endif    
+
+#ifdef _MSC_VER
+#include <intrin.h>
+#pragma intrinsic(__rdtsc)
+#endif
+
 using namespace std;
 
 //================================Globals===============================
@@ -61,7 +68,8 @@ static const std::map<std::string, std::function<bool()>> tests = {
         {"cpuid-vendor", checkVendorID},
         {"dmi", checkDMI},
         {"mac", checkMAC},
-        {"pci", checkPCI}
+        {"pci", checkPCI},
+        {"timing", checkTiming}
         // Add more test mappings here as needed
     };
 
@@ -117,6 +125,98 @@ int runIndividualTest(const std::string& testName)
 }
 
 //======================================TESTS===========================================
+/**
+ * Reads the Time Stamp Counter (TSC) before the code block.
+ * Ensures serialization to get an accurate timestamp.
+ */
+uint64_t rdtsc_start() {
+#ifdef _MSC_VER
+    return __rdtsc();
+#else
+    unsigned int lo, hi;
+    // Serialize to ensure all previous instructions have completed
+    __asm__ __volatile__(
+        "cpuid\n\t"        // Serialize the instruction stream
+        "rdtsc\n\t"        // Read the TSC into EDX:EAX
+        : "=a"(lo), "=d"(hi) // Output operands
+        :
+        : "%rbx", "%rcx");   // Clobbered registers
+    return ((uint64_t)hi << 32) | lo; // Combine high and low bits
+#endif
+}
+
+/**
+ * Reads the Time Stamp Counter (TSC) after the code block.
+ * Uses RDTSCP which waits for all previous instructions to complete.
+ */
+uint64_t rdtsc_end() {
+#ifdef _MSC_VER
+    return __rdtscp();
+#else
+    unsigned int lo, hi;
+    // RDTSCP ensures previous instructions have completed, and prevents reordering
+    __asm__ __volatile__(
+        "rdtscp\n\t"       // Read the TSC and processor ID
+        "mov %%edx, %0\n\t"// Move high bits to output variable
+        "mov %%eax, %1\n\t"// Move low bits to output variable
+        "cpuid\n\t"        // Serialize again
+        : "=r"(hi), "=r"(lo) // Output operands
+        :
+        : "%rax", "%rbx", "%rcx", "%rdx"); // Clobbered registers
+    return ((uint64_t)hi << 32) | lo; // Combine high and low bits
+#endif
+}
+
+bool checkTiming() {
+    std::cout << "===== Measuring Timing Discrepancies =====" << std::endl;
+    std::ifstream cpuinfo("/proc/cpuinfo");
+    std::string line;
+    std::regex pattern("cpu MHz\\s+: ([0-9]+\\.[0-9]+)");
+    std::smatch match;
+    unsigned int cpu_mhz = 0;
+
+    if (cpuinfo.is_open()) {
+        while (std::getline(cpuinfo, line)) {
+            if (std::regex_search(line, match, pattern)) {
+                double mhz = std::stod(match[1]);
+                cpu_mhz = static_cast<unsigned int>(mhz);
+            }
+        }
+    }
+    std::cout << "Detected CPU frequency: " << cpu_mhz << " MHz" << std::endl;
+
+    const int iterations = 1000000;
+    uint64_t start, end;
+    uint64_t total_cycles = 0;
+
+    for (int i = 0; i < iterations; ++i) {
+        start = rdtsc_start();
+
+        // Code block to measure
+        asm volatile("nop");
+
+        end = rdtsc_end();
+        total_cycles += (end - start);
+    }
+
+    double average_cycles = total_cycles / static_cast<double>(iterations);
+    double average_time_ns = (average_cycles / (cpu_mhz * 1e6)) * 1e9; // Convert to nanoseconds
+
+    std::cout << "Average cycles per operation: " << average_cycles << std::endl;
+    std::cout << "Average time per operation: " << average_time_ns << " ns" << std::endl;
+
+    // Threshold in nanoseconds (to be determined empirically)
+    double threshold_ns = 100.0; // Example threshold
+
+    if (average_time_ns > threshold_ns) {
+        std::cout << "Timing discrepancies detected. Possible virtualization environment." << std::endl;
+    } 
+    else {
+        std::cout << "No significant timing discrepancies detected." << std::endl;
+    }
+    return false;
+}
+
 
 /**
     Test to check PCI vendor and device ID's for virtual Devices

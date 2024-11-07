@@ -72,6 +72,7 @@ bool checkVendorID();
 bool checkDMI();
 bool checkMAC();
 bool checkPCI();
+bool checkTiming();
 
 // Add additional test function declarations here...
 
