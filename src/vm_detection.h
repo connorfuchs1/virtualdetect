@@ -78,7 +78,7 @@ bool checkACPI();
 bool checklscpu();
 bool checkTiming();
 bool checkUSBDevices();
-
+bool checkEnvVars();
 
 
 uint64_t rdtsc_start();

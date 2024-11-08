@@ -77,7 +77,8 @@ static const std::map<std::string, std::function<bool()>> tests = {
         {"desc-tables", checkDescriptorTables},
         {"acpi", checkACPI},
         {"lscpu", checklscpu},
-        {"usb", checkUSBDevices}
+        {"usb", checkUSBDevices},
+        {"env", checkEnvVars}
 
 
         // Add more test mappings here as needed
@@ -136,6 +137,50 @@ int runIndividualTest(const std::string& testName)
 
 //======================================TESTS===========================================
 
+/**
+    Function to check for evidence of any virtualization signatures in environment variables
+ */
+bool checkEnvVars() {
+    std::cout << "===== Checking Environment Variables for Virtualization Signatures =====" << std::endl;
+
+    // Run printenv and capture output
+    FILE* pipe = popen("printenv", "r");
+    if (!pipe) {
+        std::cerr << "Failed to run printenv command." << std::endl;
+        return false;
+    }
+
+    char buffer[128];
+    bool detected = false;
+
+    // Read printenv output line-by-line
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        std::string line(buffer);
+
+        // Check each line for any known VM signatures
+        for (const auto& signature : vm_signatures) 
+        {
+            if (line.find(signature) != std::string::npos) 
+            {
+                std::cout << "Virtualization signature found in environment variable: " << line;
+                detected = true;
+                break;
+            }
+        }
+    }
+    pclose(pipe);
+
+    if (!detected) 
+    {
+        std::cout << "No virtualization indicators found in environment variables." << std::endl;
+    }
+    return detected;
+}
+
+
+/**
+    Function to check for virtualization artifacts among listed usb devices.
+ */
 bool checkUSBDevices() {
     std::cout << "===== Checking USB Devices for Virtualization Artifacts =====" << std::endl;
     char buffer[128];
@@ -191,11 +236,15 @@ bool checklscpu() {
         // Check each line for any VM signature
         for (const auto& signature : vm_signatures) 
         {
-            if (line.find(signature) != std::string::npos) 
-            {
-                std::cout << "Virtualization signature found in lscpu output: \n" << line << std::endl;
-                detected = true;
-                break;
+            //KVM appears in cpu vuln mitigations.. 
+            if(signature != "KVM"){
+
+                if (line.find(signature) != std::string::npos) 
+                {
+                    std::cout << "Virtualization signature found in lscpu output: \n" << line << std::endl;
+                    detected = true;
+                    break;
+                }
             }
         }
     }
