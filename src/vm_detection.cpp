@@ -74,7 +74,11 @@ static const std::map<std::string, std::function<bool()>> tests = {
         {"mac", checkMAC},
         {"pci", checkPCI},
         {"timing", checkTiming},
-        {"desctables", checkDescriptorTables}
+        {"desc-tables", checkDescriptorTables},
+        {"acpi", checkACPI},
+        {"lscpu", checklscpu}
+
+
         // Add more test mappings here as needed
     };
 
@@ -130,6 +134,113 @@ int runIndividualTest(const std::string& testName)
 }
 
 //======================================TESTS===========================================
+
+
+/**
+    Function to check lscpu output to check for virtualization signatures
+ */
+bool checklscpu() {
+    std::cout << "===== Checking lscpu Output for VM Signatures =====" << std::endl;
+    bool detected = false;
+    // Run lscpu command and redirect output to a file
+    std::system("lscpu > lscpu_output.txt");
+    std::ifstream lscpu_file("lscpu_output.txt");
+    if (!lscpu_file.is_open()) 
+    {
+        std::cerr << "Could not open lscpu output file." << std::endl;
+        return detected;
+    }
+    std::string line;
+    while (std::getline(lscpu_file, line)) 
+    {
+        // Check each line for any VM signature
+        for (const auto& signature : vm_signatures) 
+        {
+            if (line.find(signature) != std::string::npos) 
+            {
+                std::cout << "Virtualization signature found in lscpu output: \n" << line << std::endl;
+                detected = true;
+                break;
+            }
+        }
+    }
+    lscpu_file.close();
+    std::remove(lscpu_file);
+    if (detected) 
+    {
+        std::cout << "Virtualization detected based on VM signatures in lscpu output." << std::endl;
+    } else 
+    {
+        std::cout << "No virtualization signatures found in lscpu output." << std::endl;
+    }
+    return detected;
+}
+
+
+/**
+    Function to check ACPI tables for virtualization artifacts
+ */
+bool checkACPI() {
+    std::cout << "===== Checking ACPI Tables =====" << std::endl;
+    bool detected = false;
+
+    // Construct the regex pattern by joining the signatures
+    std::string pattern = "(";
+    for (size_t i = 0; i < vm_signatures.size(); ++i) 
+    {
+        pattern += vm_signatures[i];
+        if (i != vm_signatures.size() - 1) {
+            pattern += "|";
+        }
+    }
+    pattern += ")";
+
+    std::regex signature_regex(pattern, std::regex_constants::icase);
+
+    // Temporary file to store ACPI dump
+    const std::string acpi_dump_file = "/tmp/acpi_tables.txt";
+
+    // Execute acpidump command and redirect output to the file
+    int ret = system(("sudo acpidump > " + acpi_dump_file).c_str());
+    if (ret != 0) 
+    {
+        std::cerr << "Failed to execute acpidump. Ensure you have the necessary permissions." << std::endl;
+        return false;
+    }
+
+    // Open the dumped ACPI tables file
+    std::ifstream acpi_file(acpi_dump_file);
+    if (!acpi_file.is_open()) 
+    {
+        std::cerr << "Failed to open ACPI dump file." << std::endl;
+        return false;
+    }
+
+    std::string line;
+    std::smatch match;
+    int linenum = 0;
+    // Read the file line by line
+    while (std::getline(acpi_file, line)) 
+    {
+        // Search for any of the virtualization signatures
+        if (std::regex_search(line, match, signature_regex)) 
+        {
+            std::cout << "Virtualization signature found in ACPI table: " << match.str(1) << "\n\t Line: " << linenum << std::endl;
+            detected = true;
+        }
+        linenum++;
+    }
+
+    acpi_file.close();
+
+    // Remove the temporary file
+    std::remove(acpi_dump_file.c_str());
+
+    return detected;
+}
+
+
+
 
 // Jump buffer for non-local goto in signal handler
 jmp_buf buf;

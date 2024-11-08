@@ -74,10 +74,14 @@ bool checkMAC();
 bool checkPCI();
 bool checkTiming();
 bool checkDescriptorTables();
+bool checkACPI();
+bool checklscpu();
+bool checkTiming();
+
+
 
 uint64_t rdtsc_start();
 uint64_t rdtsc_end();
-bool checkTiming();
 
 // Add additional test function declarations here...
 
