@@ -77,6 +77,7 @@ bool checkDescriptorTables();
 bool checkACPI();
 bool checklscpu();
 bool checkTiming();
+bool checkUSBDevices();
 
 
 

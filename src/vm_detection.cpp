@@ -76,7 +76,8 @@ static const std::map<std::string, std::function<bool()>> tests = {
         {"timing", checkTiming},
         {"desc-tables", checkDescriptorTables},
         {"acpi", checkACPI},
-        {"lscpu", checklscpu}
+        {"lscpu", checklscpu},
+        {"usb", checkUSBDevices}
 
 
         // Add more test mappings here as needed
@@ -135,6 +136,40 @@ int runIndividualTest(const std::string& testName)
 
 //======================================TESTS===========================================
 
+bool checkUSBDevices() {
+    std::cout << "===== Checking USB Devices for Virtualization Artifacts =====" << std::endl;
+    char buffer[128];
+    bool detected = false;
+
+    // Execute `lsusb` command and capture output
+    FILE* pipe = popen("lsusb", "r");
+    if (!pipe) {
+        std::cerr << "Failed to run lsusb command." << std::endl;
+        return false;
+    }
+
+    // Read lsusb output line-by-line
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        std::string line(buffer);
+
+        // Check each line for any known VM signatures
+        for (const auto& signature : vm_signatures) 
+        {
+            if (line.find(signature) != std::string::npos) 
+            {
+                std::cout << "Virtualization signature found in USB device: \n" << line;
+                detected = true;
+                break;
+            }
+        }
+    }
+    pclose(pipe);
+
+    if (!detected) {
+        std::cout << "No virtualization indicators found in USB devices." << std::endl;
+    }
+    return detected;
+}
 
 /**
     Function to check lscpu output to check for virtualization signatures
@@ -165,7 +200,6 @@ bool checklscpu() {
         }
     }
     lscpu_file.close();
-    std::remove(lscpu_file);
     if (detected) 
     {
         std::cout << "Virtualization detected based on VM signatures in lscpu output." << std::endl;
@@ -389,7 +423,7 @@ bool checkTiming() {
     const int iterations = 1000000;
     uint64_t start, end;
     uint64_t total_cycles = 0;
-
+    cout<<"Iterating nop instructions...."<<endl;
     for (int i = 0; i < iterations; ++i) {
         start = rdtsc_start();
 
@@ -403,11 +437,19 @@ bool checkTiming() {
     double average_cycles = total_cycles / static_cast<double>(iterations);
     double average_time_ns = (average_cycles / (cpu_mhz * 1e6)) * 1e9; // Convert to nanoseconds
 
-    std::cout << "Average cycles per operation: " << average_cycles << std::endl;
+    std::cout << "Done. \nAverage cycles per operation: " << average_cycles << std::endl;
     std::cout << "Average time per operation: " << average_time_ns << " ns" << std::endl;
 
-    // Threshold in nanoseconds (TBD empirically)
-    double threshold_ns = 100.0; // Example threshold !
+    /**
+        We know that on an natively running i7-13800H, 
+        the above iterations average around 20-50 ns. 
+        For the time being, we choose ~50 ns to be the
+        threshold for virtualization. More data needed.
+    
+     */
+    // Threshold in nanoseconds (Can probably be improved)
+    double threshold_ns = 60.0;
+    
 
     if (average_time_ns > threshold_ns) {
         std::cout << "Timing discrepancies detected. Possible virtualization environment." << std::endl;
