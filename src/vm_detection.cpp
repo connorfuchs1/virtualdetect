@@ -12,6 +12,7 @@
 #include <csignal>
 #include <csetjmp>
 #include <cstdint>
+#include <numeric>
 
 #ifdef __x86_64__
     #include <cpuid.h>
@@ -271,9 +272,9 @@ bool checklscpu() {
         // Check each line for any VM signature
         for (const auto& signature : vm_signatures) 
         {
-            //KVM appears in cpu vuln mitigations.. 
+            //KVM appears in cpu vuln mitigations 
             if(signature != "KVM"){
-
+ 
                 if (line.find(signature) != std::string::npos) 
                 {
                     std::cout << "Virtualization signature found in lscpu output: \n" << line << std::endl;

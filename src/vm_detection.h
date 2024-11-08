@@ -82,11 +82,6 @@ bool checkTiming();
 bool checkUSBDevices();
 bool checkEnvVars();
 
-
-void displayResults(std::map<std::string, bool> test_results);
-
-
-
 uint64_t rdtsc_start();
 uint64_t rdtsc_end();
 uint64_t get_arm_frequency();
