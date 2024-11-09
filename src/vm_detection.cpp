@@ -344,76 +344,88 @@ void signal_handler(int signum) {
  */
 bool checkDescriptorTables() {
     std::cout << "===== Checking Descriptor Tables =====" << std::endl;
-
-    // Set up signal handler for SIGSEGV to catch segmentation faults
-    std::signal(SIGSEGV, signal_handler);
-
-    // Buffers to store GDTR and IDTR contents
-    struct {
-        uint16_t limit;
-        uint64_t base;
-    } __attribute__((packed)) gdtr, idtr;
-
     bool virtualization_detected = false;
 
-    // Use setjmp/longjmp for exception handling
-    if (setjmp(buf) == 0) {
-        // Attempt to execute SGDT and SIDT instructions
-        asm volatile("sgdt %0" : "=m"(gdtr));
-        asm volatile("sidt %0" : "=m"(idtr));
 
-        // If no exception occurred, analyze the base addresses
-        std::cout << "SGDT and SIDT executed successfully." << std::endl;
+    if(OS == OS_LINUX){
 
-        std::cout << "GDTR Base: 0x" << std::hex << gdtr.base << std::endl;
-        std::cout << "IDTR Base: 0x" << std::hex << idtr.base << std::endl;
+    
+    #if defined(__x86_64__)
+        // Set up signal handler for SIGSEGV to catch segmentation faults
+        std::signal(SIGSEGV, signal_handler);
 
-        //reset to decimal format
-        std::cout << std::dec;
+        // Buffers to store GDTR and IDTR contents
+        struct {
+            uint16_t limit;
+            uint64_t base;
+        } __attribute__((packed)) gdtr, idtr;
 
-        // Check if base addresses are in user space (unexpected)
-        if (gdtr.base < 0xFFFF800000000000) {
-            std::cout << "GDTR base address is in user space (unexpected). Possible virtualization detected." << std::endl;
-            virtualization_detected = true;
+
+        // Use setjmp/longjmp for exception handling
+        if (setjmp(buf) == 0) {
+            // Attempt to execute SGDT and SIDT instructions
+            asm volatile("sgdt %0" : "=m"(gdtr));
+            asm volatile("sidt %0" : "=m"(idtr));
+
+            // If no exception occurred, analyze the base addresses
+            std::cout << "SGDT and SIDT executed successfully." << std::endl;
+
+            std::cout << "GDTR Base: 0x" << std::hex << gdtr.base << std::endl;
+            std::cout << "IDTR Base: 0x" << std::hex << idtr.base << std::endl;
+
+            //reset to decimal format
+            std::cout << std::dec;
+
+            // Check if base addresses are in user space (unexpected)
+            if (gdtr.base < 0xFFFF800000000000) {
+                std::cout << "GDTR base address is in user space (unexpected). Possible virtualization detected." << std::endl;
+                virtualization_detected = true;
+            } else {
+                std::cout << "GDTR base address is in kernel space (expected)." << std::endl;
+            }
+
+            if (idtr.base < 0xFFFF800000000000) {
+                std::cout << "IDTR base address is in user space (unexpected). Possible virtualization detected." << std::endl;
+                virtualization_detected = true;
+            } else {
+                std::cout << "IDTR base address is in kernel space (expected)." << std::endl;
+            }
+
+            // Additional checks for known virtualization signatures
+            // For example, checking for specific base addresses used by VMware
+            if (idtr.base == 0xfff82000 || gdtr.base == 0xfff82000) {
+                std::cout << "Descriptor tables have base addresses common in VMware environments." << std::endl;
+                virtualization_detected = true;
+            }
+
         } else {
-            std::cout << "GDTR base address is in kernel space (expected)." << std::endl;
-        }
-
-        if (idtr.base < 0xFFFF800000000000) {
-            std::cout << "IDTR base address is in user space (unexpected). Possible virtualization detected." << std::endl;
-            virtualization_detected = true;
-        } else {
-            std::cout << "IDTR base address is in kernel space (expected)." << std::endl;
-        }
-
-        // Additional checks for known virtualization signatures
-        // For example, checking for specific base addresses used by VMware
-        if (idtr.base == 0xfff82000 || gdtr.base == 0xfff82000) {
-            std::cout << "Descriptor tables have base addresses common in VMware environments." << std::endl;
+            // If an exception occurred, execution jumps here
+            std::cout << "SGDT or SIDT caused a segmentation fault. Possible virtualization detected." << std::endl;
             virtualization_detected = true;
         }
 
-    } else {
-        // If an exception occurred, execution jumps here
-        std::cout << "SGDT or SIDT caused a segmentation fault. Possible virtualization detected." << std::endl;
-        virtualization_detected = true;
+        // Restore default signal handler
+        std::signal(SIGSEGV, SIG_DFL);
+
+    #elif defined(__aarch64__) 
+        cout<<"ARM system detected..."<<endl;
+    #endif
+
     }
-
-    // Restore default signal handler
-    std::signal(SIGSEGV, SIG_DFL);
 
     return virtualization_detected;
 }
 
 
 /**
+ * x86 Version --
  * Reads the Time Stamp Counter (TSC) before the code block.
  * Ensures serialization to get an accurate timestamp.
  */
 uint64_t rdtsc_start() {
 #ifdef _MSC_VER
     return __rdtsc();
-#else
+#elif defined(__x86_64__)
     unsigned int lo, hi;
     // Serialize to ensure all previous instructions have completed
     __asm__ __volatile__(
@@ -423,17 +435,22 @@ uint64_t rdtsc_start() {
         :
         : "%rbx", "%rcx");   // Clobbered registers
     return ((uint64_t)hi << 32) | lo; // Combine high and low bits
+#elif defined(__arm__) || defined(_M_ARM) ||  defined(__aarch64__) || defined(_M_ARM64)
+    uint64_t start;
+    asm volatile("mrs %0, cntvct_el0" : "=r" (start));
+    return start;
 #endif
 }
 
 /**
+ * x86 version --
  * Reads the Time Stamp Counter (TSC) after the code block.
  * Uses RDTSCP which waits for all previous instructions to complete.
  */
 uint64_t rdtsc_end() {
 #ifdef _MSC_VER
     return __rdtscp();
-#else
+#elif defined(__x86_64__)
     unsigned int lo, hi;
     // RDTSCP ensures previous instructions have completed, and prevents reordering
     __asm__ __volatile__(
@@ -445,7 +462,18 @@ uint64_t rdtsc_end() {
         :
         : "%rax", "%rbx", "%rcx", "%rdx"); // Clobbered registers
     return ((uint64_t)hi << 32) | lo; // Combine high and low bits
+#elif defined(__arm__) || defined(_M_ARM) ||  defined(__aarch64__) || defined(_M_ARM64)
+    uint64_t end;
+    asm volatile("mrs %0, cntvct_el0" : "=r" (end));
+    return end;
 #endif
+}
+
+//Function to get frequency of ARM timer (hz)
+uint64_t get_arm_frequency(){
+    uint64_t frequency;
+    asm volatile("mrs %0, cntfrq_el0" : "=r" (frequency));
+    return frequency;
 }
 
 bool checkTiming() {
@@ -455,57 +483,90 @@ bool checkTiming() {
     std::string line;
     std::regex pattern("cpu MHz\\s+: ([0-9]+\\.[0-9]+)");
     std::smatch match;
-    unsigned int cpu_mhz = 0;
-
-    if (cpuinfo.is_open()) 
-    {
-        while (std::getline(cpuinfo, line)) {
-            if (std::regex_search(line, match, pattern)) 
-            {
-                double mhz = std::stod(match[1]);
-                cpu_mhz = static_cast<unsigned int>(mhz);
+    
+if (OS == OS_LINUX) {
+    #if defined(__x86_64__) //for x86 intel processors...
+        unsigned int cpu_mhz = 0;
+        if (cpuinfo.is_open()) 
+        {
+            while (std::getline(cpuinfo, line)) {
+                if (std::regex_search(line, match, pattern)) 
+                {
+                    double mhz = std::stod(match[1]);
+                    cpu_mhz = static_cast<unsigned int>(mhz);
+                }
             }
         }
-    }
-    std::cout << "Detected CPU frequency: " << cpu_mhz << " MHz" << std::endl;
+        std::cout << "Detected CPU frequency: " << cpu_mhz << " MHz" << std::endl;
 
-    const int iterations = 1000000;
-    uint64_t start, end;
-    uint64_t total_cycles = 0;
-    cout<<"Iterating nop instructions...."<<endl;
-    for (int i = 0; i < iterations; ++i) {
-        start = rdtsc_start();
+        const int iterations = 1000000;
+        uint64_t start, end;
+        uint64_t total_cycles = 0;
+        cout<<"Iterating nop instructions...."<<endl;
+        for (int i = 0; i < iterations; ++i) {
+            start = rdtsc_start();
 
-        // Code block to measure
-        asm volatile("nop");
+            // Code block to measure
+            asm volatile("nop");
 
-        end = rdtsc_end();
-        total_cycles += (end - start);
-    }
+            end = rdtsc_end();
+            total_cycles += (end - start);
+        }
 
-    double average_cycles = total_cycles / static_cast<double>(iterations);
-    double average_time_ns = (average_cycles / (cpu_mhz * 1e6)) * 1e9; // Convert to nanoseconds
+        double average_cycles = total_cycles / static_cast<double>(iterations);
+        double average_time_ns = (average_cycles / (cpu_mhz * 1e6)) * 1e9; // Convert to nanoseconds
 
-    std::cout << "Done. \nAverage cycles per operation: " << average_cycles << std::endl;
-    std::cout << "Average time per operation: " << average_time_ns << " ns" << std::endl;
+        std::cout << "Done. \nAverage cycles per operation: " << average_cycles << std::endl;
+        std::cout << "Average time per operation: " << average_time_ns << " ns" << std::endl;
 
-    /**
-        We know that on an natively running i7-13800H, 
-        the above iterations average around 20-50 ns. 
-        For the time being, we choose ~50 ns to be the
-        threshold for virtualization. More data needed.
-    
-     */
-    // Threshold in nanoseconds (Can probably be improved)
-    double threshold_ns = 60.0;
-    
+        /**
+            We know that on an natively running i7-13800H, 
+            the above iterations average around 20-50 ns. 
+            For the time being, we choose ~50 ns to be the
+            threshold for virtualization. More data needed.
+        
+        */
+        // Threshold in nanoseconds (Can probably be improved)
+        double threshold_ns = 60.0;
+        
 
-    if (average_time_ns > threshold_ns) {
-        std::cout << "Timing discrepancies detected. Possible virtualization environment." << std::endl;
-        detected = true;
-    } 
-    else {
-        std::cout << "No significant timing discrepancies detected." << std::endl;
+        if (average_time_ns > threshold_ns) {
+            std::cout << "Timing discrepancies detected. Possible virtualization environment." << std::endl;
+            detected = true;
+        } 
+        else {
+            std::cout << "No significant timing discrepancies detected." << std::endl;
+        }
+
+    #elif defined(__aarch64__) || defined(_M_ARM64) //for arm processors
+        std::cout<<"ARM system detected..."<<endl;
+        uint64_t start,end,total_cycles = 0;
+        uint64_t frequency = get_arm_frequency();
+        std::cout<<"ARM Frequency: " << frequency <<" Hz" << endl;
+
+
+        const int iterations = 1000000;
+        std::cout<<"Iterating nop instructions...."<<endl;
+
+        for(int i = 0; i < iterations; ++i)
+        {
+            start = rdtsc_start();
+
+            asm volatile("nop");
+
+            end = rdtsc_end();
+            total_cycles+= (end - start);
+        }
+
+        //average cycles per NOP instruction
+        double avg_cycles = total_cycles / static_cast<double>(iterations);
+        //average time in ns
+        double avg_time = (avg_cycles / frequency) * 1e9;
+
+        std::cout<<"Done. \nAverage cycles per operation: "<<avg_cycles<<std::endl;
+        std::cout<<"Average time per operation: "<< avg_time<<std::endl;
+    #endif
+
     }
 
     if(OS == OS_WINDOWS)
@@ -722,7 +783,7 @@ bool checkDMI(){
 bool checkVendorID() {
     std::cout << "===== Checking Hypervisor Vendor ID =====" << std::endl;
 
-#if defined(X86) || defined(X86_64)
+#if defined(__x86_64__)
     if (OS == OS_LINUX) 
     {
         unsigned int eax, ebx, ecx, edx;
@@ -770,7 +831,7 @@ bool checkVendorID() {
         printf("Unsupported OS for hypervisor detection on x86 architecture.\n");
         return false;
     }
-#elif defined(ARM) || defined(ARM64)
+#elif defined(__arm__) || defined(_M_ARM) ||  defined(__aarch64__) || defined(_M_ARM64)
     if (OS == OS_LINUX)
     {
         // ARM-specific virtualization detection could be added here
@@ -832,7 +893,7 @@ bool checkHypervisorBit()
         return false;
     }
 
-#elif defined(__aarch64__) || defined(__arm__)
+#elif defined(__arm__) || defined(_M_ARM) ||  defined(__aarch64__) || defined(_M_ARM64)
     if (OS == OS_LINUX)
     {
         cout<<"On arm based processor, implement check hypervisor bit"<<endl;

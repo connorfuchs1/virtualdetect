@@ -18,6 +18,7 @@
 
 #if defined(__aarch64__) || defined(_M_ARM64)
     #define ARM64 1
+    
 #else
     #define ARM64 0
 #endif
@@ -83,7 +84,7 @@ bool checkEnvVars();
 
 uint64_t rdtsc_start();
 uint64_t rdtsc_end();
-
+uint64_t get_arm_frequency();
 // Add additional test function declarations here...
 
 #endif // VM_DETECTION_H
