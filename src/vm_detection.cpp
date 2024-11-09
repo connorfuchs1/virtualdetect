@@ -557,12 +557,15 @@ if (OS == OS_LINUX) {
             end = rdtsc_end();
             total_cycles+= (end - start);
         }
+        unsigned int frequency_mhz = frequency / 1e6;
+
 
         //average cycles per NOP instruction
         double avg_cycles = total_cycles / static_cast<double>(iterations);
         //average time in ns
-        double avg_time = (avg_cycles / frequency) * 1e9;
+        double avg_time = (avg_cycles / frequency_mhz) * 1e3;
 
+        //make sure these calculations are correct lol
         std::cout<<"Done. \nAverage cycles per operation: "<<avg_cycles<<std::endl;
         std::cout<<"Average time per operation: "<< avg_time<<std::endl;
     #endif
