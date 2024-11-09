@@ -6,9 +6,7 @@
 #include <filesystem>
 #include <sstream>
 #include <algorithm>
-#include <string>
 #include <functional>
-#include <map>
 #include <pci/pci.h>
 #include <regex>
 #include <csignal>
@@ -84,6 +82,9 @@ static const std::map<std::string, std::function<bool()>> tests = {
         // Add more test mappings here as needed
     };
 
+// Test Result map
+std::map<std::string, bool> test_results;
+
 //number of tests
 const int NUMTESTS = tests.size();
 
@@ -103,18 +104,30 @@ int runAllTests()
     int totalTests = tests.size();
     int detected = 0;
     cout << ARCH << endl;
-    // Run all tests
+
+    // Run all tests and store results
     for (const auto& [testName, testFunction] : tests) 
     {
-        if (testFunction()) {
+        bool result = testFunction();  // Run the test
+        test_results[testName] = result;  // Store the result in test_results map
+        if (result) {
             detected++;
         }
     }
 
+    // Display results in a formatted box
+    cout << "\n\t╔══════════════════════════════════════════════════════════════════╗" << endl;
+    cout << "\t║                  Virtualization Detection Summary                ║" << endl;
+    cout << "\t╠══════════════════════════════════════════════════════════════════╣" << endl;
+    cout << "\t║ Result: " << detected << " of " << totalTests << " tests found virtualization artifacts.\t\t   ║" << endl;
+    cout << "\t║ Chance virtualization detected: " << std::fixed << std::setprecision(2) 
+         << ((float)detected/totalTests)*100 << "%                           ║" << endl;
+    cout << "\t╠══════════════════════════════════════════════════════════════════╣" << endl;
 
-    cout << "\n\t===================================================" << endl;
-    cout << "\tResult: " << detected << " of " << totalTests << " tests found virtualization artifacts" << endl;
-    cout << "\tChance virtualization detected: "<< ((float)detected/totalTests)*100 << "%" <<endl;
+    displayResults(test_results);
+
+    cout << "\t╚══════════════════════════════════════════════════════════════════╝" << endl;
+
     return detected > 0;
 }
 
@@ -135,10 +148,32 @@ int runIndividualTest(const std::string& testName)
     }
 }
 
+// Function to display test results in box format
+void displayResults(const std::map<std::string, bool> test_results) {
+    // Calculate max test name width
+    int maxTestNameWidth = 0;
+    for (const auto& [testName, _] : test_results) {
+        maxTestNameWidth = std::max(maxTestNameWidth, static_cast<int>(testName.size()));
+    }
+
+    // Set width for result text and padding
+    int maxResultWidth = std::max(static_cast<int>(std::string("Detected").size()), static_cast<int>(std::string("Not Detected").size()));
+    int totalWidth = maxTestNameWidth + maxResultWidth + 13; // Adjust total width based on max widths
+
+    for (const auto& [testName, result] : test_results) {
+        std::string resultText = result ? "Detected" : "Not Detected";
+        
+        // Print line with padding to align right side
+        cout << "\t║ Test: " << std::left << std::setw(maxTestNameWidth) << testName
+             << " │ " << std::setw(maxResultWidth) << resultText
+             << std::string(totalWidth - maxTestNameWidth , ' ')  // Dynamic right-side padding
+             << "\t   ║" << endl;
+    }
+}
 //======================================TESTS===========================================
 
 /**
-    Function to check for evidence of any virtualization signatures in environment variables
+    Function to check for evidence of any virtualization signatusres in environment variables
  */
 bool checkEnvVars() {
     std::cout << "===== Checking Environment Variables for Virtualization Signatures =====" << std::endl;

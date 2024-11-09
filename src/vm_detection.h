@@ -2,6 +2,7 @@
 #define VM_DETECTION_H
 
 #include <string> 
+#include <map>
 
 // Architecture Detection Macros
 #if defined(__x86_64__) || defined(_M_X64) || defined(__amd64__)
@@ -80,6 +81,10 @@ bool checklscpu();
 bool checkTiming();
 bool checkUSBDevices();
 bool checkEnvVars();
+
+
+void displayResults(std::map<std::string, bool> test_results);
+
 
 
 uint64_t rdtsc_start();
