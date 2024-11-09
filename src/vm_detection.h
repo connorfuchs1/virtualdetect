@@ -64,7 +64,7 @@ extern ARCH_TYPE ARCH;
 
 // Function declarations
 void displayHelp();
-int runAllTests();
+std::map<std::string, bool> runAllTests();
 int runIndividualTest(const std::string& testName);
 
 //individual tests

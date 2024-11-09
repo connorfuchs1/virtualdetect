@@ -13,7 +13,7 @@ INCLUDES = -I. $(shell pkg-config --cflags libpci)
 LIBS = $(shell pkg-config --libs libpci)
 
 # Source Files
-SRCS = main.cpp vm_detection.cpp
+SRCS = main.cpp vm_detection.cpp vm_mitigations.cpp  # Added vm_mitigations.cpp
 
 # Object Files
 OBJS = $(SRCS:.cpp=.o)

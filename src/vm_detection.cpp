@@ -99,7 +99,7 @@ void displayHelp()
 }
 
 // Function to run all tests
-int runAllTests()
+std::map<std::string, bool> runAllTests()
 {
     int totalTests = tests.size();
     int detected = 0;
@@ -128,7 +128,7 @@ int runAllTests()
 
     cout << "\t╚══════════════════════════════════════════════════════════════════╝" << endl;
 
-    return detected > 0;
+    return test_results;
 }
 
 // Function to run individual tests
