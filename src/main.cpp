@@ -12,9 +12,11 @@ int main(int argc, char* argv[]) {
     // Detect and display the OS and Architecture
     if (LINUX) {
         OS = OS_LINUX;
-    } else if (WINDOWS) {
+    } 
+    else if (WINDOWS) {
         OS = OS_WINDOWS;
-    } else {
+    } else 
+    {
         cout << "Unknown OS" << endl;
         return -1;
     }
@@ -26,7 +28,8 @@ int main(int argc, char* argv[]) {
     else cout << "Unknown architecture" << endl;
 
     int option;
-    while ((option = getopt(argc, argv, "hat:")) != -1) {
+    while ((option = getopt(argc, argv, "hat:")) != -1) 
+    {
         switch (option) {
             case 'h':
                 displayHelp();
@@ -62,7 +65,7 @@ int main(int argc, char* argv[]) {
         cin >> userChoice;
 
         if (userChoice == 'y' || userChoice == 'Y') {
-            //applyMitigations(test_results);  // Call mitigation function with results
+            applyMitigations(test_results);  // Call mitigation function with results
         }
 
         // Ask if they want to exit or re-run
