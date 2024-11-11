@@ -3,3 +3,9 @@
 vm_detection
 *.out
 .vscode/
+*.mod
+*.cmd
+*.ko
+*.order
+*.mod.c
+*.symvers
