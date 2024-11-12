@@ -12,6 +12,12 @@ INCLUDES = -I. $(shell pkg-config --cflags libpci)
 # Libraries
 LIBS = $(shell pkg-config --libs libpci)
 
+# Define kernel version
+KERNEL_VERSION := $(shell uname -r)
+
+# Define the kernel build path
+KERNEL_BUILD := /lib/modules/$(KERNEL_VERSION)/build
+
 # Source Files
 SRCS = main.cpp vm_detection.cpp vm_mitigations.cpp  # Added vm_mitigations.cpp
 
@@ -39,6 +45,14 @@ check_tools:
 	@which lsusb >/dev/null 2>&1 || (echo "lsusb not found, installing usbutils..."; sudo apt-get install -y usbutils)
 	@which lscpu >/dev/null 2>&1 || (echo "lscpu not found, installing util-linux..."; sudo apt-get install -y util-linux)
 	@ldconfig -p | grep libpci.so >/dev/null 2>&1 || (echo "libpci not found, installing pciutils and libpci-dev..."; sudo apt-get install -y pciutils libpci-dev)
+
+	# Check if kernel headers are present, install if missing
+	@if [ ! -d "$(KERNEL_BUILD)" ]; then \
+		echo "Kernel headers not found for $(KERNEL_VERSION). Installing..."; \
+		sudo apt-get update && sudo apt-get install -y linux-headers-$(KERNEL_VERSION); \
+	else \
+		echo "Kernel headers found."; \
+	fi
 
 # Clean up build files
 clean:

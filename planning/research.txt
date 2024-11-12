@@ -1,0 +1,9 @@
+On timing detection:
+in a virtual environment, average time per operation is going to be much slower than that of a natively running machine. im curious in circumnavigating this issue. common tests for such vm detection often use NOP / cpuid to determine whether or not we are in a virtualized environment. Is there any potential to set up avery low level, simple monitor: Any process calling NOP / CPUID instructions iteratively, suggests that one of these virtualization detection tests is taking place. How might we detect, and immediately prioritize such instructions to reflect that of a natively running cpu?
+
+
+
+Necessary Packages:
+usbutils
+pciutils
+

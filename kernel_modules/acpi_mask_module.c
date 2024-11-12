@@ -6,6 +6,7 @@
 #include <linux/file.h>
 #include <linux/uaccess.h>
 #include <linux/printk.h>
+#include <linux/ctype.h>
 
 static struct kprobe kp;
 
@@ -37,14 +38,25 @@ static void print_acpi_table_hex(struct acpi_table_header *table, size_t length)
     pr_info("\n");
 }
 
-// Function to replace occurrences of a target string with a replacement in the table
+// Function to perform case-insensitive replacement in the table
 static void replace_string_in_table(struct acpi_table_header *table, size_t length, const char *target, const char *replacement) {
     unsigned char *data = (unsigned char *)table;
     size_t target_len = strlen(target);
     size_t replacement_len = strlen(replacement);
 
     for (size_t i = 0; i <= length - target_len; i++) {
-        if (memcmp(&data[i], target, target_len) == 0) {
+        bool match = true;
+        
+        // Perform case-insensitive comparison
+        for (size_t j = 0; j < target_len; j++) {
+            if (tolower(data[i + j]) != tolower(target[j])) {
+                match = false;
+                break;
+            }
+        }
+
+        // If target is found, replace it
+        if (match) {
             // Replace target with replacement, pad with spaces if replacement is shorter
             memset(&data[i], ' ', target_len);
             memcpy(&data[i], replacement, min(target_len, replacement_len));
@@ -57,17 +69,30 @@ static void replace_string_in_table(struct acpi_table_header *table, size_t leng
 static int hook_acpi_get_table(struct kprobe *p, struct pt_regs *regs) {
     acpi_status status;
     struct acpi_table_header *table;
+    acpi_string signature;
+    u32 instance;
 
-    status = orig_acpi_get_table((acpi_string)regs->regs[0], (u32)regs->regs[1], &table);
+#ifdef __x86_64__
+    signature = (acpi_string)regs->di;
+    instance = (u32)regs->si;
+#elif defined(__aarch64__)
+    signature = (acpi_string)regs->regs[0];
+    instance = (u32)regs->regs[1];
+#else
+#error "Unsupported architecture"
+#endif
+
+    status = orig_acpi_get_table(signature, instance, &table);
 
     if (ACPI_SUCCESS(status)) {
         pr_info("ACPI table successfully retrieved. Signature: %.4s\n", table->signature);
 
-        // Replace virtualization artifacts 
+        // Replace known virtualization artifacts with generic values
         replace_string_in_table(table, table->length, "QEMU", "GENUINE");
         replace_string_in_table(table, table->length, "VMWARE", "MICROSFT");
         replace_string_in_table(table, table->length, "EDK2", "BIOSV");
         replace_string_in_table(table, table->length, "BXPC", "SYSC ");
+        replace_string_in_table(table, table->length, "VIRTUAL", "REAL  "); // Added "VIRTUAL"
 
         // Update the checksum after modification
         update_acpi_table_checksum(table, table->length);

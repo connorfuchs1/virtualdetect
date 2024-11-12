@@ -33,8 +33,8 @@ ARCH_TYPE ARCH = ARCH_UNKNOWN;
 vector<string> vm_signatures = {
     "VMware", "VirtualBox", "VBOX", "QEMU",
     "KVM", "Microsoft Corporation", "Hyper-V",
-    "Parallels", "Xen", "Bochs", "BHYVE",
-    "HVM domU", "VMW", "innotek GmbH", "QEM", "VRT"
+    "Parallels", "Bochs", "BHYVE",
+    "HVM domU", "innotek GmbH", "QEM", "VRT"
 };
 
 
@@ -505,12 +505,15 @@ uint64_t rdtsc_end() {
 #endif
 }
 
+
+#if defined(__arm__) || defined(_M_ARM) ||  defined(__aarch64__) || defined(_M_ARM64)
 //Function to get frequency of ARM timer (hz)
 uint64_t get_arm_frequency(){
     uint64_t frequency;
     asm volatile("mrs %0, cntfrq_el0" : "=r" (frequency));
     return frequency;
 }
+#endif
 
 bool checkTiming() {
     std::cout << "===== Measuring Timing Discrepancies =====" << std::endl;
