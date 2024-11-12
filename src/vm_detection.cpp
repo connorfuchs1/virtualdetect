@@ -767,37 +767,54 @@ bool checkMAC(){
 /**
     Test to check for VM signatures in DMI fields
  */
-bool checkDMI(){
-    cout<<"===== Checking DMI Fields =====" <<endl;
-    //Checking for Linux Systems
-    if (OS == OS_LINUX)
-    {
-        //Typical DMI paths on linux
+bool checkDMI() {
+    cout << "===== Checking DMI Fields =====" << endl;
+
+    // Check for Linux OS
+    if (OS == OS_LINUX) {
+        // Expanded DMI paths, including additional paths for virtualization artifacts
         const vector<string> dmi_paths = {
-        "/sys/class/dmi/id/sys_vendor",
-        "/sys/class/dmi/id/product_name",
-        "/sys/class/dmi/id/product_version"
+            "/sys/class/dmi/id/sys_vendor",
+            "/sys/class/dmi/id/product_name",
+            "/sys/class/dmi/id/product_version",
+            "/sys/class/dmi/id/board_vendor",
+            "/sys/class/dmi/id/bios_vendor",
+            "/sys/class/dmi/id/product_family",
+            "/sys/class/dmi/id/uevent",      // Added path for uevent
+            "/sys/class/dmi/id/modalias"     // Added path for modalias
+        };
+
+        // Signatures of VM platforms (expand as needed)
+        const vector<string> vm_signatures = {
+            "qemu", "vmware", "virtualbox", "hyper-v", "xen", "kvm", "parallels"
         };
 
         bool detected = false;
-        //Check each DMI field for any VM signatures
-        for (const auto& path : dmi_paths)
-        {
+        
+        // Check each DMI field for VM signatures
+        for (const auto& path : dmi_paths) {
             ifstream file(path);
-            string value;
+            string value, line;
 
-            if(file.is_open() && getline(file, value))
-            {
-                for(const auto& signature : vm_signatures)
-                {
-                    if (value.find(signature) != std::string::npos) 
-                    {
-                        detected = true; //We found a signature.
-                        cout<<"Signature found :"<<"\""<<signature<<"\"" <<" in DMI field: "<<path<<endl;
+            if (file.is_open()) {
+                // Read entire content for multi-line handling
+                while (getline(file, line)) {
+                    value += line + " ";
+                }
+
+                // Convert content to lowercase to enable case-insensitive searching
+                transform(value.begin(), value.end(), value.begin(), ::tolower);
+
+                // Check if any VM signature is a substring within the content
+                for (const auto& signature : vm_signatures) {
+                    if (value.find(signature) != string::npos) {
+                        detected = true;
+                        cout << "Signature found: \"" << signature << "\" in DMI field: " << path << endl;
                     }
                 }
+            } else {
+                cout << "Could not open file: " << path << endl;
             }
-            
         }
         return detected;
     }
@@ -940,7 +957,7 @@ bool checkHypervisorBit()
     std::cout << "Unsupported architecture for hypervisor detection." << std::endl;
     return false;
 #endif
-    return true;
+    return false;
 
 }
 
