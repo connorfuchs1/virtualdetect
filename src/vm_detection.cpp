@@ -382,7 +382,6 @@ bool checkDescriptorTables() {
     std::cout << "===== Checking Descriptor Tables =====" << std::endl;
     bool virtualization_detected = false;
 
-
     if(OS == OS_LINUX){
 
     
