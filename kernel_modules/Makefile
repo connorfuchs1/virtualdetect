@@ -1,6 +1,6 @@
 # Makefile for kernel module
 
-obj-m += acpi_mask_module.o
+obj-m += acpi_mask_module.o dmi_module.o
 
 # Default target that checks for kernel headers
 all: check_headers
