@@ -31,6 +31,7 @@ void applyMitigations(const std::map<std::string, bool> test_results) {
     for (const auto& [testName, detected] : test_results) {
         if (detected) {
             if(testName == "dmi") mitigateDMI();
+            else if (testName == "acpi") mitigateACPI();
         /** 
             if (testName == "io") mitigateIODevices();
             else if (testName == "cpu") mitigateCPU();
@@ -52,11 +53,10 @@ void applyMitigations(const std::map<std::string, bool> test_results) {
 }
 
 
-
-bool mitigateDMI()
+bool mitigateACPI()
 {
-    std::cout << "=====Mitigating DMI Detection=====\n  Loading kernel module..." << std::endl;
-    const std::string module_name = "dmi_module.ko";
+    std::cout<< "Mitigating ACPI Detections..."<< std::endl;
+    const std::string module_name = "acpi_mask_module.ko";
 
     std::string load_command = insmod + kernel_module_dir + module_name;
     int insmod_result = std::system(load_command.c_str());
@@ -67,6 +67,23 @@ bool mitigateDMI()
         return false;
     }
 
+    std::cout<<"ACPI masking module applied."<<std::endl;
+    return true;
+}
 
+bool mitigateDMI()
+{
+    std::cout << "Mitigating DMI Detections...\n  Loading kernel module..." << std::endl;
+    const std::string module_name = "dmi_module.ko";
+
+    std::string load_command = insmod + kernel_module_dir + module_name;
+    int insmod_result = std::system(load_command.c_str());
+
+    if (insmod_result != 0)
+    {
+        std::cerr<<"Error: Failed to load kernel module" << std::endl;
+        return false;
+    }
+    std::cout<<"DMI masking module applied."<<std::endl;
     return true;
 }

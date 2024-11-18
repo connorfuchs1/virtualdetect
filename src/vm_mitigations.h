@@ -6,4 +6,5 @@
 
 void applyMitigations(const std::map<std::string, bool> test_results);
 bool mitigateDMI();
+bool mitigateACPI();
 #endif // VM_MITIGATIONS_H
