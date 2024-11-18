@@ -148,7 +148,7 @@ std::map<std::string, bool> runAllTests()
     cout << "\n\t╔══════════════════════════════════════════════════════════════════╗" << endl;
     cout << "\t║                  Virtualization Detection Summary                ║" << endl;
     cout << "\t╠══════════════════════════════════════════════════════════════════╣" << endl;
-    cout << "\t║ Result: " << detected << " of " << totalTests << " tests found virtualization artifacts.\t  ║" << endl;
+    cout << "\t║ Result: " << detected << " of " << totalTests << " tests found virtualization artifacts.\t   ║" << endl;
     cout << "\t║ Chance virtualization detected: " << std::fixed << std::setprecision(2) 
          << ((float)detected/totalTests)*100 << "%                           ║" << endl;
     cout << "\t╠══════════════════════════════════════════════════════════════════╣" << endl;

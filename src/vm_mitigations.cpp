@@ -2,13 +2,35 @@
 #include <iostream>
 #include <map>
 #include <string>
+#include <filesystem>
+
+namespace fs = std::filesystem;
+
+const std::string kernel_module_dir = " ../kernel_modules/";
+const std::string make = "make -C ";
+const std::string insmod = "sudo insmod ";
+const std::string rmmod = "sudo rmmod ";
+const std::string ko_extension = ".ko";
+
+bool buildModules(){
+    int result = std::system( (make + kernel_module_dir).c_str() );
+    if(result != 0)
+    {
+        std::cerr << "Error: Failed to build kernel module." << std::endl;
+        return false;
+    }
+    return true;
+}
 
 void applyMitigations(const std::map<std::string, bool> test_results) {
+    std::cout <<"\nBuilding kernel modules..."<<std::endl;
+    buildModules();
     std::cout << "\nApplying mitigation techniques for detected artifacts...\n";
 
     // Check each test and apply mitigation if it was detected
     for (const auto& [testName, detected] : test_results) {
         if (detected) {
+            if(testName == "dmi") mitigateDMI();
         /** 
             if (testName == "io") mitigateIODevices();
             else if (testName == "cpu") mitigateCPU();
@@ -26,5 +48,25 @@ void applyMitigations(const std::map<std::string, bool> test_results) {
         */
         }
     }
-    std::cout << "Mitigations applied where possible.\n";
+    std::cout << "\nMitigations applied!";
+}
+
+
+
+bool mitigateDMI()
+{
+    std::cout << "=====Mitigating DMI Detection=====\n  Loading kernel module..." << std::endl;
+    const std::string module_name = "dmi_module.ko";
+
+    std::string load_command = insmod + kernel_module_dir + module_name;
+    int insmod_result = std::system(load_command.c_str());
+
+    if (insmod_result != 0)
+    {
+        std::cerr<<"Error: Failed to load kernel module" << std::endl;
+        return false;
+    }
+
+
+    return true;
 }
