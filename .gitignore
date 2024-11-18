@@ -9,3 +9,4 @@ vm_detection
 *.order
 *.mod.c
 *.symvers
+*.iso

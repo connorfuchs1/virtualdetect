@@ -33,7 +33,7 @@ void applyMitigations(const std::map<std::string, bool> test_results) {
             if(testName == "dmi") mitigateDMI();
             else if (testName == "acpi") mitigateACPI();
         /** 
-            if (testName == "io") mitigateIODevices();
+            else if (testName == "io") mitigateIODevices();
             else if (testName == "cpu") mitigateCPU();
             else if (testName == "cpuid-vendor") mitigateVendorID();
             else if (testName == "dmi") mitigateDMI();
