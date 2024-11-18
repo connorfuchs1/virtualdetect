@@ -81,7 +81,7 @@ bool checklscpu();
 bool checkTiming();
 bool checkUSBDevices();
 bool checkEnvVars();
-
+bool checkLSMod();
 
 void displayResults(std::map<std::string, bool> test_results);
 

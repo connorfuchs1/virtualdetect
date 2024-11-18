@@ -64,6 +64,35 @@ std::vector<std::string> virtual_device_ids = {
     "5853:0002", // Xen
 };
 
+
+// List of known virtualization-related kernel modules
+std::vector<std::string> virtualization_modules = {
+    "vboxguest",    // VirtualBox Guest Additions
+    "vboxsf",       // VirtualBox Shared Folders
+    "vboxvideo",    // VirtualBox Video Driver
+    "vmw_balloon",  // VMware Balloon Driver
+    "vmw_vmci",     // VMware VMCI Driver
+    "vmw_vsock_vmci_transport", // VMware Vsock Driver
+    "vmw_vsock_virtio_transport_common", // VMware Vsock Virtio Transport
+    "vmwgfx",       // VMware Graphics Driver
+    "vsock",        // Virtual Socket Driver
+    "hyperv",       // Microsoft Hyper-V
+    "hv_utils",     // Hyper-V Utilities
+    "hv_vmbus",     // Hyper-V VMBus
+    "hv_storvsc",   // Hyper-V Storage Driver
+    "kvm",          // Kernel-based Virtual Machine
+    "kvm_intel",    // KVM for Intel Processors
+    "kvm_amd",      // KVM for AMD Processors
+    "xen_netfront", // Xen Network Driver
+    "xen_blkfront", // Xen Block Device Driver
+    "xenfs",        // Xen Filesystem
+    "xen_platform_pci", // Xen Platform PCI Driver
+    "parallels",    // Parallels
+    "prl_fs",       // Parallels Shared Folders
+    "prl_tg",       // Parallels Tools Gate
+    // Add more modules as needed
+};
+
 //Map for storing all of our tests
 static const std::map<std::string, std::function<bool()>> tests = {
         {"io", checkIODevices},
@@ -77,9 +106,8 @@ static const std::map<std::string, std::function<bool()>> tests = {
         {"acpi", checkACPI},
         {"lscpu", checklscpu},
         {"usb", checkUSBDevices},
-        {"env", checkEnvVars}
-
-
+        {"env", checkEnvVars},
+        {"lsmod", checkLSMod}
         // Add more test mappings here as needed
     };
 
@@ -120,7 +148,7 @@ std::map<std::string, bool> runAllTests()
     cout << "\n\t╔══════════════════════════════════════════════════════════════════╗" << endl;
     cout << "\t║                  Virtualization Detection Summary                ║" << endl;
     cout << "\t╠══════════════════════════════════════════════════════════════════╣" << endl;
-    cout << "\t║ Result: " << detected << " of " << totalTests << " tests found virtualization artifacts.\t\t   ║" << endl;
+    cout << "\t║ Result: " << detected << " of " << totalTests << " tests found virtualization artifacts.\t  ║" << endl;
     cout << "\t║ Chance virtualization detected: " << std::fixed << std::setprecision(2) 
          << ((float)detected/totalTests)*100 << "%                           ║" << endl;
     cout << "\t╠══════════════════════════════════════════════════════════════════╣" << endl;
@@ -174,10 +202,63 @@ void displayResults(const std::map<std::string, bool> test_results) {
 //======================================TESTS===========================================
 
 /**
+    Function to check for presence of common virtualization kernel modules
+ */
+bool checkLSMod(){
+    std::cout << "\n===== Checking Loaded Kernel Modules (lsmod) =====" << std::endl;
+    bool detected = false;
+
+    FILE* pipe = popen("lsmod", "r");
+    if(!pipe)
+    {
+        std::cerr<<"Failed to run lsmod command."<<std::endl;
+        return detected;
+    }
+
+    char buffer[256];
+
+    std::vector<std::string> loaded_modules;
+
+    while(fgets(buffer, sizeof(buffer), pipe) != nullptr)
+    {
+        std::string line(buffer);
+        std::istringstream iss(line);
+        std::string module_name;
+
+        if(iss >> module_name)
+        {
+            loaded_modules.push_back(module_name);
+        }
+    }
+    pclose(pipe);
+
+    //iterate thru and lowercase modules for comparison
+    for(const auto& virt_module : virtualization_modules)
+    {
+        std::string virt_module_lower = virt_module;
+        std::transform(virt_module_lower.begin(), virt_module_lower.end(), virt_module_lower.begin(), ::tolower);
+        if (std::find(loaded_modules.begin(), loaded_modules.end(), virt_module_lower) != loaded_modules.end()) 
+        {
+            std::cout << "Virtualization module detected: " << virt_module << std::endl;
+            detected = true;
+        }
+
+    }
+
+    if(!detected)
+    {
+        std::cout<< "No virtualization artifacts detected in loaded kernel modules" << std::endl;
+
+    }
+    return detected;
+}
+
+
+/**
     Function to check for evidence of any virtualization signatusres in environment variables
  */
 bool checkEnvVars() {
-    std::cout << "===== Checking Environment Variables for Virtualization Signatures =====" << std::endl;
+    std::cout << "\n===== Checking Environment Variables for Virtualization Signatures =====" << std::endl;
 
     // Run printenv and capture output
     FILE* pipe = popen("printenv", "r");
@@ -218,7 +299,7 @@ bool checkEnvVars() {
     Function to check for virtualization artifacts among listed usb devices.
  */
 bool checkUSBDevices() {
-    std::cout << "===== Checking USB Devices for Virtualization Artifacts =====" << std::endl;
+    std::cout << "\n===== Checking USB Devices for Virtualization Artifacts =====" << std::endl;
     char buffer[128];
     bool detected = false;
 
@@ -256,7 +337,7 @@ bool checkUSBDevices() {
     Function to check lscpu output to check for virtualization signatures
  */
 bool checklscpu() {
-    std::cout << "===== Checking lscpu Output for VM Signatures =====" << std::endl;
+    std::cout << "\n===== Checking lscpu Output for VM Signatures =====" << std::endl;
     bool detected = false;
     // Run lscpu command and redirect output to a file
     std::system("lscpu > lscpu_output.txt");
@@ -300,7 +381,7 @@ bool checklscpu() {
     Function to check ACPI tables for virtualization artifacts
  */
 bool checkACPI() {
-    std::cout << "===== Checking ACPI Tables =====" << std::endl;
+    std::cout << "\n===== Checking ACPI Tables =====" << std::endl;
     bool detected = false;
 
     // Construct the regex pattern by joining the signatures
@@ -379,7 +460,7 @@ void signal_handler(int signum) {
  * Detects possible virtualization by analyzing these addresses.
  */
 bool checkDescriptorTables() {
-    std::cout << "===== Checking Descriptor Tables =====" << std::endl;
+    std::cout << "\n===== Checking Descriptor Tables =====" << std::endl;
     bool virtualization_detected = false;
 
     if(OS == OS_LINUX){
@@ -515,7 +596,7 @@ uint64_t get_arm_frequency(){
 #endif
 
 bool checkTiming() {
-    std::cout << "===== Measuring Timing Discrepancies =====" << std::endl;
+    std::cout << "\n===== Measuring Timing Discrepancies =====" << std::endl;
     bool detected = false;
     std::ifstream cpuinfo("/proc/cpuinfo");
     std::string line;
@@ -627,7 +708,7 @@ if (OS == OS_LINUX) {
     or just adjust vm settings to allow for a hardware passthrough.
  */
 bool checkPCI(){
-    cout<<"===== Checking for virtualized PCI devices =====" << endl;
+    cout<<"\n===== Checking for virtualized PCI devices =====" << endl;
     bool detected = false;
     unsigned int virtualized_devices= 0;
     if (OS == OS_LINUX)
@@ -701,7 +782,7 @@ bool checkPCI(){
     Test to check our MAC ADDRESS for common VM address prefixes.
  */
 bool checkMAC(){
-    cout<<"===== Checking Common MAC Addresses ====="<< endl;
+    cout<<"\n===== Checking Common MAC Addresses ====="<< endl;
     bool detected = false;
 
     if(OS == OS_LINUX)
@@ -771,7 +852,7 @@ bool checkMAC(){
     Test to check for VM signatures in DMI fields
  */
 bool checkDMI() {
-    std::cout << "===== Checking DMI Fields =====" << std::endl;
+    std::cout << "\n===== Checking DMI Fields =====" << std::endl;
 
     // Check for Linux OS
     if(OS == OS_LINUX){
@@ -821,7 +902,7 @@ bool checkDMI() {
     }
 
     // Additional check using dmidecode
-    std::cout << "===== Checking dmidecode Output =====" << std::endl;
+    std::cout << "\n===== Checking dmidecode Output =====" << std::endl;
     // Command to execute
     const char* cmd = "dmidecode --type system 2>/dev/null";
 
@@ -872,7 +953,7 @@ bool checkDMI() {
     Test for checking EAX=0x40000000 for a Vendor ID string via CPUID.
  */
 bool checkVendorID() {
-    std::cout << "===== Checking Hypervisor Vendor ID =====" << std::endl;
+    std::cout << "\n===== Checking Hypervisor Vendor ID =====" << std::endl;
 
 #if defined(__x86_64__)
     if (OS == OS_LINUX) 
@@ -948,7 +1029,7 @@ bool checkVendorID() {
  */
 bool checkHypervisorBit() 
 {
-    cout << "===== Checking CPU Hypervisor Bit =====" << endl;
+    cout << "\n===== Checking CPU Hypervisor Bit =====" << endl;
 #ifdef __x86_64__
     if (OS == OS_LINUX) 
     {
@@ -1002,7 +1083,7 @@ bool checkHypervisorBit()
  */
 bool checkIODevices() 
 {
-    cout << "===== Checking IO Devices =====" << endl;
+    cout << "\n===== Checking IO Devices =====" << endl;
 
     if (OS == OS_LINUX) 
     {
