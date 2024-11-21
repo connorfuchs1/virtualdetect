@@ -78,5 +78,12 @@ def get_progress():
     print(f"Progress reported: {progress['percentage']}%")
     return jsonify(progress)
 
+@app.route('/iso-options')
+def iso_options():
+    iso_directory = '../iso'
+    iso_files = [f for f in os.listdir(iso_directory) if f.endswith('.iso')]
+
+    return render_template('iso_options.html', iso_files=iso_files)
+
 if __name__ == "__main__":
     app.run(debug=True, threaded=True, host='0.0.0.0', port='1337')

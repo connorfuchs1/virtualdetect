@@ -51,6 +51,10 @@
                         if (progressData.percentage === 100) {
                             clearInterval(interval);
                             statusText.textContent = 'Download complete!';
+
+                            setTimeout( () => {
+                            window.location.href = 'iso-options';
+                        }, 1000);
                         }
                     } catch (err) {
                         console.error('Error fetching progress:', err);
@@ -101,5 +105,9 @@
         <div id="progress-bar"></div>
     </div>
     <p id="status"></p>
+    <h2> View your ISOs</h2>
+    <form action="iso-options" method="GET">
+        <button type="submit"> View ISO Files </button>
+    </form>
 </body>
 </html>
