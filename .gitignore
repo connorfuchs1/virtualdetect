@@ -10,3 +10,4 @@ vm_detection
 *.mod.c
 *.symvers
 *.iso
+**/__pycache__/

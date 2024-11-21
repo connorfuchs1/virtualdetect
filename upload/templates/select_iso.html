@@ -1,0 +1,18 @@
+<!doctype html>
+<html>
+<head>
+    <title>Select ISO</title>
+</head>
+<body>
+    <h1>Select an ISO for VM Creation</h1>
+    <form method="post">
+        <label for="iso">Choose an ISO:</label>
+        <select name="iso" id="iso">
+            {% for iso in isos %}
+            <option value="{{ iso }}">{{ iso }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">Select ISO</button>
+    </form>
+</body>
+</html>

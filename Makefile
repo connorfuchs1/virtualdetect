@@ -7,11 +7,11 @@ all: kernel_modules src venv install_deps
 kernel_modules:
 	$(MAKE) -C kernel_modules
 
-# Build the main application
+# Build C++ sources
 src:
 	$(MAKE) -C src
 
-# Create and activate a virtual environment
+# Set up Python virtual environment
 venv:
 	@if [ ! -d "venv" ]; then \
 		python3 -m venv venv; \
@@ -26,15 +26,15 @@ install_deps: venv
 	@venv/bin/pip install -r requirements.txt
 	@echo "Python dependencies installed."
 
-# Run the Flask application
-run: install_deps
-	@venv/bin/python3 -m flask --app iso_selection.py run
+# Run the Flask app
+run_flask: install_deps
+	@cd upload && ../venv/bin/python3 -m flask --app iso_selection.py run
 
-# Clean up build files in subdirectories
+# Clean up build files
 clean:
 	$(MAKE) -C src clean
 	$(MAKE) -C kernel_modules clean
 	@rm -rf venv
 	@echo "Cleaned up Python virtual environment."
 
-.PHONY: all clean kernel_modules src venv install_deps run
+.PHONY: all clean kernel_modules src venv install_deps run_flask
