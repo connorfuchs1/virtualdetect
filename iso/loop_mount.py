@@ -79,16 +79,21 @@ def embed_tools_and_scripts(src_path, temp_dir):
         print(f"Embedded vm_detection and vm_mitigation tools into {target_bin_dir}")
 
         # Optional: Add a startup script to ensure they run on boot
-        startup_script_path = os.path.join(temp_dir, "etc", "rc.local")
+        startup_script_path = os.path.join(temp_dir, "etc", "init.d", "vm_startup")
         startup_script_content = """#!/bin/bash
 /usr/local/bin/vm_detection -a
+
+# Custom startup script for anti-virtualization tools
 exit 0
 """
-        # Write the startup script to rc.local or create it if it does not exist
+        # Write the startup script to init.d or create it if it does not exist
         with open(startup_script_path, "w") as startup_script:
             startup_script.write(startup_script_content)
 
-        # Ensure rc.local is executable
+        # Create symlink to run script on startup
+        subprocess.run(["ln", "-s", startup_script_path, os.path.join(temp_dir, "etc", "rc.d", "S99vm_startup")], check=True)
+
+        # Ensure startup script is executable
         os.chmod(startup_script_path, 0o755)
         print(f"Added startup script to {startup_script_path}")
 

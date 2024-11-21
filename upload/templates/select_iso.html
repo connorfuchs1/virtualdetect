@@ -2,10 +2,92 @@
 <html>
 <head>
     <title>Select ISO</title>
+    <script>
+        async function downloadISO() {
+            const iso = document.getElementById('iso').value;
+            const progressBar = document.getElementById('progress-bar');
+            const statusText = document.getElementById('status');
+
+            // Reset progress bar
+            progressBar.style.width = '0%';
+            progressBar.textContent = '';
+            statusText.textContent = 'Checking for existing ISO...';
+
+            try {
+                // Initiate download and await response
+                const downloadResponse = await fetch('/download', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ iso })
+                });
+
+                if (!downloadResponse.ok) {
+                    const error = await downloadResponse.json();
+                    alert(`Error: ${error.error}`);
+                    return;
+                }
+
+                const downloadData = await downloadResponse.json();
+
+                if (downloadData.already_downloaded) {
+                    // ISO already downloaded
+                    statusText.textContent = `ISO "${iso}" is already downloaded.`;
+                    progressBar.style.width = '100%';
+                    progressBar.textContent = '100%';
+                    return;
+                } else {
+                    statusText.textContent = downloadData.message;
+                }
+
+                // Start polling for progress
+                const interval = setInterval(async () => {
+                    try {
+                        const progressResponse = await fetch(`/progress?time=${new Date().getTime()}`);
+                        const progressData = await progressResponse.json();
+                        progressBar.style.width = `${progressData.percentage}%`;
+                        progressBar.textContent = `${progressData.percentage}%`;
+                        statusText.textContent = `Download progress: ${progressData.percentage}%`;
+
+                        if (progressData.percentage === 100) {
+                            clearInterval(interval);
+                            statusText.textContent = 'Download complete!';
+                        }
+                    } catch (err) {
+                        console.error('Error fetching progress:', err);
+                    }
+                }, 500);
+
+            } catch (err) {
+                alert('An error occurred during the download.');
+                console.error(err);
+            }
+        }
+    </script>
+    <style>
+        #progress-container {
+            width: 40%;
+            background-color: #f3f3f3;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 20px;
+            position: relative;
+        }
+
+        #progress-bar {
+            width: 0%;
+            height: 20px;
+            background-color: #4caf50;
+            text-align: center;
+            color: white;
+            line-height: 20px;
+            transition: width 0.1s ease-in-out;
+        }
+    </style>
 </head>
 <body>
     <h1>Select an ISO for VM Creation</h1>
-    <form method="post">
+    <form onsubmit="event.preventDefault(); downloadISO();">
         <label for="iso">Choose an ISO:</label>
         <select name="iso" id="iso">
             {% for iso_name in iso_options.keys() %}
@@ -14,5 +96,10 @@
         </select>
         <button type="submit">Download ISO</button>
     </form>
+
+    <div id="progress-container">
+        <div id="progress-bar"></div>
+    </div>
+    <p id="status"></p>
 </body>
 </html>
