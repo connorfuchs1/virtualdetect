@@ -1,1 +1,0 @@
-virtualdetect is meant to be a virtualization detection / mitigation program which aims to allow the user to make their VM indistinguishable from physical hardware. providing support for x86 and arm architectures
