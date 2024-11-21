@@ -8,11 +8,11 @@
     <form method="post">
         <label for="iso">Choose an ISO:</label>
         <select name="iso" id="iso">
-            {% for iso in isos %}
-            <option value="{{ iso }}">{{ iso }}</option>
+            {% for iso_name in iso_options.keys() %}
+            <option value="{{ iso_name }}">{{ iso_name }}</option>
             {% endfor %}
         </select>
-        <button type="submit">Select ISO</button>
+        <button type="submit">Download ISO</button>
     </form>
 </body>
 </html>

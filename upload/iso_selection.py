@@ -1,23 +1,44 @@
 import os
+import requests
 from flask import Flask, render_template, request
 
 app = Flask(__name__)
 
-# Path to the directory containing ISO files
-ISO_FOLDER = os.path.join(os.path.dirname(__file__), 'isos')
+# Directory to store downloaded ISOs
+ISO_FOLDER = os.path.expanduser('~/virtualdetect/iso')
+os.makedirs(ISO_FOLDER, exist_ok=True)
+
+# Predefined ISO options with download URLs
+ISO_OPTIONS = {
+    "Ubuntu 24.04": "https://releases.ubuntu.com/24.04/ubuntu-24.04-desktop-amd64.iso",
+    "Debian 12": "https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-12.0.0-amd64-netinst.iso"
+}
 
 @app.route('/select_iso', methods=['GET', 'POST'])
 def select_iso():
-    # List ISO files in the directory
-    try:
-        isos = [f for f in os.listdir(ISO_FOLDER) if f.endswith('.iso')]
-    except FileNotFoundError:
-        isos = []  # Fallback if the directory doesn't exist
     if request.method == 'POST':
         selected_iso = request.form.get('iso')
-        # Respond with the selected ISO or take further actions
-        return f'ISO "{selected_iso}" selected for VM creation.'
-    return render_template('select_iso.html', isos=isos)
+        iso_url = ISO_OPTIONS.get(selected_iso)
+
+        if iso_url:
+            iso_path = os.path.join(ISO_FOLDER, f"{selected_iso.replace(' ', '_')}.iso")
+            try:
+                response = requests.get(iso_url, stream=True)
+                response.raise_for_status()
+                with open(iso_path, 'wb') as iso_file:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        iso_file.write(chunk)
+                return f'ISO "{selected_iso}" has been downloaded to {iso_path}.'
+            except requests.exceptions.RequestException as e:
+                return f"Error downloading ISO: {e}"
+        return "Invalid ISO selection."
+
+    # Debugging: Print ISO_OPTIONS to console
+    print("ISO_OPTIONS being passed to the template:", ISO_OPTIONS)
+
+    return render_template('select_iso.html', iso_options=ISO_OPTIONS)
+
+     
 
 if __name__ == "__main__":
     app.run(debug=True)
