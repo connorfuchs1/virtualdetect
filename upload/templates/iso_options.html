@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+    <head>
+        <title>
+            ISO options
+        </title>
+    </head>
+<body>
+    <h1> Downloaded ISO Files</h1>
+    {% if iso_files %}
+    <ul>
+        {% for iso in iso_files %}
+            <li>
+                {{iso}}
+                <form action="/modify-iso" method="post" style="display:inline;">
+                    <input type ="hidden" name="iso_name" value="{{iso}}">
+                    <button type="submit">Modify ISO</button>
+                </form>
+
+                <form action="/load-iso" method="post" style="display:inline;">
+                    <input type="hidden" name="iso_name" value="{{iso}}">
+                    <button type="submit">Load ISO</button>
+                </form>
+
+            </li>
+            {% endfor %}
+    </ul>
+    {% else %}
+        <p> No ISO files downloaded yet.</p>
+    {% endif %}
+</body>
+</html>

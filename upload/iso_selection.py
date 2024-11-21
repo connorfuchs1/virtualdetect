@@ -1,6 +1,7 @@
 import os
 import requests
 import threading
+import subprocess
 from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
@@ -85,5 +86,43 @@ def iso_options():
 
     return render_template('iso_options.html', iso_files=iso_files)
 
+@app.route('/modify-iso', methods=['POST'])
+def modify_iso():
+    iso_name = request.form.get('iso_name')
+    iso_path = os.path.join("..", "iso", iso_name)  # Construct ISO path
+    script_path = os.path.join("..", "iso", "loop_mount.py")  # Construct script path
+
+    try:
+        result = subprocess.run(["python3", script_path, iso_path],
+                                capture_output =True, text=True, check=True)
+        return jsonify({
+            "message": f"ISO {iso_name} modified.",
+            "output": result.stdout
+
+        }), 200
+    except subprocess.CalledProcessError as e:
+        return jsonify({
+            "error": f"Failed to modify ISO {iso_name}",
+            "detailed": e.stderr
+        }), 500
+    
+
+@app.route('/load-iso', methods=['POST'])
+def load_iso():
+    iso_name = request.form.get('iso_name')
+    # Implement your logic to load the ISO into Proxmox
+    load_iso_into_proxmox(iso_name)
+    return redirect('/iso-options')
+
+def modify_iso_file(iso_name):
+    
+    pass
+
+def load_iso_into_proxmox(iso_name):
+    # Your logic to interact with Proxmox API goes here
+    pass
+
+
+
 if __name__ == "__main__":
-    app.run(debug=True, threaded=True, host='0.0.0.0', port='1337')
+    app.run(debug=True, threaded=True)
