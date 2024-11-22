@@ -93,7 +93,7 @@ def modify_iso():
     script_path = os.path.join("..", "iso", "loop_mount.py")  # Construct script path
 
     try:
-        result = subprocess.run(["python3", script_path, iso_path],
+        result = subprocess.run(["sudo", "python3", script_path, iso_path],
                                 capture_output =True, text=True, check=True)
         return jsonify({
             "message": f"ISO {iso_name} modified.",
